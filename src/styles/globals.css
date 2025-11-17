@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+[data-rbd-drag-handle-context-id] {
+  touch-action: none;
+}
+
+/* Dragging card visual treatment */
+.dragging {
+  opacity: 0.96 !important;
+  transform: scale(1.03) !important;
+  z-index: 9999 !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+}
+/* --- custom theme colors --- */
+:root {
+  --bg: 15 14 23;
+  --accent-purple: 108 99 255;
+  --accent-green: 0 245 160;
+  --text: 255 255 255;
+  --text-muted: 166 166 166;
+}
+
+body {
+  background-color: rgb(var(--bg));
+  color: rgb(var(--text));
+  font-family: Inter, system-ui, sans-serif;
+}
