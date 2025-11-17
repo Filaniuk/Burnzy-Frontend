@@ -1,137 +1,301 @@
+// app/calendar/page.tsx
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import FullCalendar from "@fullcalendar/react";
-import dayGridPlugin from "@fullcalendar/daygrid";
-import interactionPlugin from "@fullcalendar/interaction";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { Draggable } from "@fullcalendar/interaction";
+import type { Draggable as FCDraggable } from "@fullcalendar/interaction";
+
 import { apiFetch } from "@/lib/api";
 import ScheduleModal from "./components/ScheduleModal";
+import EventModal from "./components/EventModal";
+import CalendarSidebar from "./components/CalendarSidebar";
+import CalendarView from "./components/CalendarView";
+import {
+  BrandEvent,
+  CalendarIdea,
+  IdeaStatus,
+  getEventColors,
+  EventDropArg,
+  ExternalDropArg,
+  EventClickArg,
+} from "@/types/calendar";
+import ConfirmModal from "../pricing/components/ConfirmModal";
 
 export default function CalendarPage() {
-  const [events, setEvents] = useState([]);
-  const [unscheduledIdeas, setUnscheduledIdeas] = useState([]);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [ideaToSchedule, setIdeaToSchedule] = useState(null);
+  const [events, setEvents] = useState<BrandEvent[]>([]);
+  const [unscheduled, setUnscheduled] = useState<CalendarIdea[]>([]);
+  const [filming, setFilming] = useState<CalendarIdea[]>([]);
+  const [publishing, setPublishing] = useState<CalendarIdea[]>([]);
+  const [published, setPublished] = useState<CalendarIdea[]>([]);
+  const [archived, setArchived] = useState<CalendarIdea[]>([]);
+  const [calendarMeta, setCalendarMeta] = useState<any>()
+  const [modalType, setModalType] =
+    useState<"schedule" | "event" | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<() => void>(() => { });
+  const [cancelAction, setCancelAction] = useState<() => void>(() => { });
+  const [confirmMessage, setConfirmMessage] = useState({
+    title: "",
+    description: "",
+    button: "OK",
+    color: "yellow" as "red" | "yellow" | "green",
+  });
 
-  const loadCalendar = useCallback(async () => {
+  const [activeIdeaId, setActiveIdeaId] = useState<number | null>(null);
+  const [scheduleDate, setScheduleDate] = useState<string | null>(null);
+
+  const sidebarRef = useRef<HTMLDivElement | null>(null);
+  const draggableRef = useRef<FCDraggable | null>(null);
+
+  // --------------------------
+  // Helpers
+  // --------------------------
+  function isPast(dateStr: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return new Date(dateStr).getTime() < today.getTime();
+  }
+
+  function openConfirmModal({
+    title,
+    description,
+    confirmText = "OK",
+    color = "yellow",
+    onConfirm,
+    onCancel,
+  }: {
+    title: string;
+    description: string;
+    confirmText?: string;
+    color?: "red" | "yellow" | "green";
+    onConfirm: () => void;
+    onCancel: () => void;
+  }) {
+    setConfirmMessage({ title, description, button: confirmText, color });
+    setConfirmAction(() => onConfirm);
+    setCancelAction(() => onCancel);
+    setShowConfirm(true);
+  }
+
+
+  // --------------------------
+  // Unified load()
+  // --------------------------
+  const load = useCallback(async () => {
     const res = await apiFetch("/api/v1/calendar");
-    const scheduled = res.data.scheduled;
-    const unscheduled = res.data.unscheduled;
+    setCalendarMeta(res.meta)
+    const scheduled: CalendarIdea[] = res.data.scheduled;
+    const unsched: CalendarIdea[] = res.data.unscheduled;
 
-    setUnscheduledIdeas(unscheduled);
+    setUnscheduled(unsched);
 
-    const mapped = [];
+    const film: CalendarIdea[] = [];
+    const toPublish: CalendarIdea[] = [];
+    const publishedIdeas: CalendarIdea[] = [];
+    const archivedIdeas: CalendarIdea[] = [];
+    const mappedEvents: BrandEvent[] = [];
 
     for (const idea of scheduled) {
-      if (idea.filming_date) {
-        mapped.push({
-          id: `${idea.id}-film`,
-          title: `🎥 ${idea.title}`,
-          date: idea.filming_date,
-          backgroundColor: "#F8E45C",
-          borderColor: "#F8E45C",
-          extendedProps: { type: "filming", idea_id: idea.id }
-        });
+      const status = idea.status as IdeaStatus;
+
+      // Bucket for sidebar
+      if (status === "to_film") {
+        film.push(idea);
+      } else if (status === "to_publish") {
+        toPublish.push(idea);
+      } else if (status === "published") {
+        publishedIdeas.push(idea);
+      } else if (status === "archived") {
+        archivedIdeas.push(idea);
       }
 
-      if (idea.publish_date) {
-        mapped.push({
-          id: `${idea.id}-publish`,
-          title: `📢 ${idea.title}`,
-          date: idea.publish_date,
-          backgroundColor: "#00F5A0",
-          borderColor: "#00F5A0",
-          extendedProps: { type: "publish", idea_id: idea.id }
+      // Calendar event (no archived in calendar)
+      if (idea.scheduled_for && status !== "unassigned") {
+        const colors = getEventColors(status);
+
+        mappedEvents.push({
+          id: `idea-${idea.id}`,
+          title: idea.title,
+          date: idea.scheduled_for,
+          ...colors,
+          extendedProps: {
+            idea_id: idea.id,
+            status,
+          },
         });
       }
     }
 
-    setEvents(mapped);
+    setFilming(film);
+    setPublishing(toPublish);
+    setPublished(publishedIdeas);
+    setArchived(archivedIdeas);
+    setEvents(mappedEvents);
   }, []);
 
   useEffect(() => {
-    loadCalendar();
-  }, [loadCalendar]);
+    load();
+  }, [load]);
 
-  function handleDateClick(info) {
-    setSelectedDate(info.dateStr);
-    setIdeaToSchedule(null);
-    setModalOpen(true);
-  }
+  // --------------------------
+  // Enable drag from "Unscheduled"
+  // --------------------------
+  useEffect(() => {
+    if (!sidebarRef.current) return;
 
-  function handleEventDrop(info) {
-    const ideaId = info.event.extendedProps.idea_id;
-    const type = info.event.extendedProps.type;
+    if (draggableRef.current) {
+      draggableRef.current.destroy();
+    }
+
+    draggableRef.current = new Draggable(sidebarRef.current, {
+      itemSelector: ".unscheduled-card",
+      eventData: (el: HTMLElement) => ({
+        title: el.getAttribute("data-title") || "",
+        extendedProps: {
+          idea_id: Number(el.getAttribute("data-id")),
+        },
+      }),
+    });
+
+    return () => {
+      if (draggableRef.current) {
+        draggableRef.current.destroy();
+        draggableRef.current = null;
+      }
+    };
+  }, [unscheduled]);
+
+  // --------------------------
+  // Event drag within calendar (move date, keep status)
+  // --------------------------
+  function handleEventDrop(info: EventDropArg) {
+    const dateStr: string = info.event.startStr;
+    if (isPast(dateStr)) {
+      openConfirmModal({
+        title: "Invalid Date",
+        description: "You cannot schedule or move content into the past.",
+        confirmText: "Okay",
+        color: "yellow",
+        onConfirm: () => {
+          info.revert();
+          setShowConfirm(false);
+        },
+        onCancel: () => {
+          info.revert();
+          setShowConfirm(false);
+        },
+      });
+      return;
+    }
+
+
+    const ideaId = info.event.extendedProps.idea_id as number;
+    const status = info.event.extendedProps.status as IdeaStatus;
 
     apiFetch("/api/v1/calendar/schedule", {
       method: "POST",
       body: JSON.stringify({
         idea_id: ideaId,
-        filming_date: type === "filming" ? info.event.startStr : null,
-        publish_date: type === "publish" ? info.event.startStr : null
-      })
-    }).then(loadCalendar);
+        date: dateStr,
+        status,
+      }),
+    }).then(() => load());
   }
 
-  function handleKanbanDrop(ideaId, date) {
-    setIdeaToSchedule(ideaId);
-    setSelectedDate(date);
-    setModalOpen(true);
+  // --------------------------
+  // Drop from sidebar → calendar
+  // --------------------------
+  function handleExternalDrop(info: ExternalDropArg) {
+    const dateStr: string = info.dateStr;
+    if (isPast(dateStr)) {
+      openConfirmModal({
+        title: "Cannot Schedule in the Past",
+        description: "Pick a date today or in the future.",
+        confirmText: "Got it",
+        color: "yellow",
+        onConfirm: () => setShowConfirm(false),
+        onCancel: () => setShowConfirm(false),
+      });
+      return;
+    }
+
+
+    const id =
+      info.draggedEl?.getAttribute("data-id") ||
+      info.event?.extendedProps?.idea_id;
+
+    setModalType("schedule");
+    setActiveIdeaId(Number(id));
+    setScheduleDate(dateStr);
   }
+
+  // --------------------------
+  // Click existing event → Event modal
+  // --------------------------
+  function handleEventClick(info: EventClickArg) {
+    const ideaId = info.event.extendedProps.idea_id as number;
+    setModalType("event");
+    setActiveIdeaId(ideaId);
+  }
+
+  // --------------------------
+  // Upcoming list
+  // --------------------------
+  const sortedEvents = [...events].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+  const nextFive = sortedEvents.slice(0, 5);
 
   return (
-    <div className="flex gap-6">
-      {/* SIDEBAR UNSCHEDULED LIST */}
-      <div className="w-64 bg-[#13121C] border border-[#2A2935] rounded-xl p-4">
-        <h3 className="font-semibold mb-3">Unscheduled Ideas</h3>
+    <div
+      className="flex min-h-[calc(100vh-80px)] gap-6 text-white"
+      style={{ background: "#0F0E17" }}
+    >
+      <CalendarSidebar
+        sidebarRef={sidebarRef}
+        meta={calendarMeta}
+        unscheduled={unscheduled}
+        filming={filming}
+        publishing={publishing}
+        published={published}
+        archived={archived}
+        nextFive={nextFive}
+      />
 
-        <div className="space-y-2">
-          {unscheduledIdeas.map((i) => (
-            <div
-              key={i.id}
-              draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData("idea_id", String(i.id));
-              }}
-              className="
-                p-2 rounded-lg bg-[#1B1A24] border border-[#2E2D39] 
-                text-sm cursor-grab hover:bg-[#22212E]
-              "
-            >
-              {i.title}
-            </div>
-          ))}
-        </div>
-      </div>
+      <CalendarView
+        events={events}
+        onEventDrop={handleEventDrop}
+        onExternalDrop={handleExternalDrop}
+        onEventClick={handleEventClick}
+      />
 
-      {/* MAIN CALENDAR */}
-      <div className="flex-1 bg-[#13121C] border border-[#2A2935] rounded-xl p-4">
-        <FullCalendar
-          plugins={[dayGridPlugin, interactionPlugin]}
-          initialView="dayGridMonth"
-          events={events}
-          height="auto"
-          editable={true}
-          droppable={true}
-          dateClick={handleDateClick}
-          eventDrop={handleEventDrop}
-          drop={(info) => {
-            const ideaId = info.draggedEl.getAttribute("data-idea-id");
-            const date = info.dateStr;
-            handleKanbanDrop(ideaId, date);
-          }}
-        />
-      </div>
-
-      {modalOpen && (
+      {/* MODALS */}
+      {modalType === "schedule" && (
         <ScheduleModal
-          close={() => setModalOpen(false)}
-          date={selectedDate}
-          ideaId={ideaToSchedule}
-          reload={loadCalendar}
+          close={() => setModalType(null)}
+          date={scheduleDate}
+          ideaId={activeIdeaId}
+          reload={load}
         />
       )}
+
+      {modalType === "event" && (
+        <EventModal
+          close={() => setModalType(null)}
+          ideaId={activeIdeaId}
+          reload={load}
+        />
+      )}
+
+      <ConfirmModal
+        show={showConfirm}
+        title={confirmMessage.title}
+        description={confirmMessage.description}
+        confirmText={confirmMessage.button}
+        confirmColor={confirmMessage.color}
+        onConfirm={confirmAction}
+        onCancel={cancelAction}
+      />
     </div>
   );
 }

@@ -27,3 +27,137 @@ body {
   color: rgb(var(--text));
   font-family: Inter, system-ui, sans-serif;
 }
+
+/* ---------------------------------------------------
+   BASE CALENDAR THEME (Cleaned & Improved)
+   Deep purple (#6C63FF) + neon green (#00F5A0)
+   Dark background (#13121C) + white (#FFFFFF)
+---------------------------------------------------- */
+
+.fc {
+  background: #13121C !important;
+  color: #FFFFFF !important;
+}
+
+/* -------------------------------
+   Day Cells
+------------------------------- */
+.fc-daygrid-day {
+  border-color: rgba(0, 245, 160, 0.25) !important;
+  transition: background 0.15s ease;
+}
+
+.fc-daygrid-day-frame {
+  position: relative;
+}
+
+/* Hover */
+.fc-daygrid-day:hover {
+  background: #1F1D2B !important;
+}
+
+/* -------------------------------
+   Today Cell (upgraded)
+------------------------------- */
+.fc-day-today {
+  position: relative;
+  background: rgba(108, 99, 255, 0.10) !important;
+  border: 1px solid #6C63FF !important;
+  box-shadow: 0 0 12px rgba(108, 99, 255, 0.4);
+}
+
+/* Vertical center line */
+.fc-daygrid-day.fc-day-today .fc-daygrid-day-frame::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  transform: translateX(-50%);
+  background: linear-gradient(to bottom, #6C63FF, #6C63FF, #00F5A0);
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+/* Bottom gradient bar */
+.fc-day-today::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 2px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #6C63FF, #00F5A0);
+}
+
+/* -------------------------------
+   Header
+------------------------------- */
+.fc-toolbar-title {
+  color: #FFFFFF !important;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+}
+
+.fc-button {
+  background: #1B1A24 !important;
+  border: 1px solid #6C63FF !important;
+  color: white !important;
+  border-radius: 8px !important;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.fc-button:hover {
+  background: #6C63FF !important;
+  transform: translateY(-1px);
+}
+
+.fc-col-header-cell-cushion,
+.fc-scrollgrid-sync-inner {
+  background: #0F0E17 !important;
+}
+
+/* -------------------------------
+   Events
+------------------------------- */
+.fc-daygrid-event {
+  border-radius: 8px !important;
+  padding: 2px 4px !important;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+}
+
+.fc-daygrid-event:hover {
+  transform: translateY(-1px) scale(1.01);
+  box-shadow: 0 0 0 1px rgba(0, 245, 160, 0.35);
+}
+
+/* Brand event wrapper */
+.brand-calendar-event {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+  border-radius: 10px !important;
+}
+
+.brand-calendar-event:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45);
+}
+
+/* -------------------------------
+   Modal Animation (deduped)
+------------------------------- */
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-pop-in {
+  animation: pop-in 0.18s ease-out;
+}

@@ -169,7 +169,7 @@ export default function KanbanBoard() {
               </div>
 
               <span className="text-xs text-neutral-400">
-                {board[col.id].length}
+                {board[col.id]?.length}
               </span>
             </div>
 
