@@ -1,20 +1,18 @@
 "use client";
 
-import PortfolioCard from "./PortfolioCard";
+import HistoryCard from "./HistoryCard";
 
 interface Props {
   title: string;
   color: string;
   items: any[];
-  onSelectPlan: (item: any) => void;
   router: any;
 }
 
-export default function PortfolioSection({
+export default function HistorySection({
   title,
   color,
   items,
-  onSelectPlan,
   router,
 }: Props) {
   return (
@@ -28,10 +26,9 @@ export default function PortfolioSection({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
         {items.map((item, i) => (
-          <PortfolioCard
+          <HistoryCard
             key={`${item.channel_tag}-${item.version}-${i}`}
             item={item}
-            onSelectPlan={onSelectPlan}
             router={router}
             accentColor={color}
           />

@@ -40,8 +40,8 @@ export function Header() {
               >
                 Try for free
               </Link>
-              <Link href="/portfolio" className="hover:text-[#00F5A0] transition">
-                My portfolio
+              <Link href="/history" className="hover:text-[#00F5A0] transition">
+                History
               </Link>
               <Link href="/pricing" className="hover:text-[#00F5A0] transition">
                 Pricing
@@ -58,8 +58,8 @@ export function Header() {
               >
                 Analyze 🚀
               </Link>
-              <Link href="/portfolio" className="hover:text-[#00F5A0] transition">
-                My portfolio
+              <Link href="/history" className="hover:text-[#00F5A0] transition">
+                History
               </Link>
               <Link href="/pricing" className="hover:text-[#00F5A0] transition">
                 Pricing
@@ -109,11 +109,11 @@ export function Header() {
                     Try for free
                   </Link>
                   <Link
-                    href="/portfolio"
+                    href="/history"
                     className="hover:text-[#00F5A0]"
                     onClick={() => setMenuOpen(false)}
                   >
-                    My portfolio
+                    History
                   </Link>
                   <Link
                     href="/pricing"
@@ -140,11 +140,11 @@ export function Header() {
                     Analyze 🚀
                   </Link>
                   <Link
-                    href="/portfolio"
+                    href="/history"
                     className="hover:text-[#00F5A0]"
                     onClick={() => setMenuOpen(false)}
                   >
-                    My portfolio
+                    History
                   </Link>
                   <Link
                     href="/pricing"

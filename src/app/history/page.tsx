@@ -3,20 +3,10 @@
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
-import PortfolioSection from "../portfolio/components/PortfolioSection";
+import HistorySection from "./components/HistorySection";
 import dynamic from "next/dynamic";
 
-// Lazy load modal for performance (only when opened)
-const PlanModal = dynamic(() => import("../portfolio/components/PlanModal"), {
-  ssr: false,
-  loading: () => (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/50 text-neutral-300 text-sm">
-      Opening planner...
-    </div>
-  ),
-});
-
-interface PortfolioItem {
+interface HistoryItem {
   id: number;
   tag: string;
   new_channel: boolean;
@@ -25,44 +15,37 @@ interface PortfolioItem {
   created_at: string;
 }
 
-export default function PortfolioPage() {
-  const [items, setItems] = useState<PortfolioItem[]>([]);
+export default function HistoryPage() {
+  const [items, setItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeItem, setActiveItem] = useState<PortfolioItem | null>(null);
   const [uploadsPerWeek, setUploadsPerWeek] = useState(2);
   const [weeks, setWeeks] = useState(3);
   const [generating, setGenerating] = useState(false);
 
   const router = useRouter();
 
-  // --- Fetch portfolio ---
-  const fetchPortfolio = useCallback(async () => {
+  // --- Fetch history ---
+  const fetchHistory = useCallback(async () => {
     try {
-      const res = await apiFetch<{ data: PortfolioItem[] }>("/api/v1/user/portfolio");
+      const res = await apiFetch<{ data: HistoryItem[] }>("/api/v1/user/portfolio");
       setItems(res.data || []);
     } catch (err) {
-      console.error("Failed to fetch portfolio:", err);
+      console.error("Failed to fetch history:", err);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchPortfolio();
-  }, [fetchPortfolio]);
+    fetchHistory();
+  }, [fetchHistory]);
 
-  // --- Handle plan redirect ---
-  const handleGeneratePlanRedirect = (tag: string, version: number) => {
-    setGenerating(true);
-    const url = `/plan/${encodeURIComponent(tag)}/${version}?weeks=${weeks}&uploads=${uploadsPerWeek}`;
-    router.push(url);
-  };
 
   // --- Loading state ---
   if (loading)
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0F0E17] text-neutral-400 text-lg animate-pulse">
-        Loading your portfolio...
+        Loading your history...
       </div>
     );
 
@@ -96,7 +79,7 @@ export default function PortfolioPage() {
         {/* Header */}
         <header className="text-center space-y-2">
           <h1 className="text-4xl sm:text-5xl font-extrabold bg-gradient-to-r from-[#6C63FF] to-[#00F5A0] bg-clip-text text-transparent">
-            My Portfolio
+            Analysis History
           </h1>
           <p className="text-neutral-400 text-sm sm:text-base">
             Your analyzed channels and topic research history.
@@ -105,42 +88,24 @@ export default function PortfolioPage() {
 
         {/* Channel Section */}
         {channels.length > 0 && (
-          <PortfolioSection
+          <HistorySection
             title="🌎 Analyzed Channels"
             color="#00F5A0"
             items={channels}
-            onSelectPlan={setActiveItem}
             router={router}
           />
         )}
 
         {/* Topic Section */}
         {topics.length > 0 && (
-          <PortfolioSection
+          <HistorySection
             title="💡 Analyzed Topics"
             color="#6C63FF"
             items={topics}
-            onSelectPlan={setActiveItem}
             router={router}
           />
         )}
       </div>
-
-      {/* Lazy-loaded Modal */}
-      <Suspense>
-        {activeItem && (
-          <PlanModal
-            activeItem={activeItem}
-            uploadsPerWeek={uploadsPerWeek}
-            setUploadsPerWeek={setUploadsPerWeek}
-            weeks={weeks}
-            setWeeks={setWeeks}
-            generating={generating}
-            setActiveItem={setActiveItem}
-            handleGeneratePlanRedirect={handleGeneratePlanRedirect}
-          />
-        )}
-      </Suspense>
     </main>
   );
 }

@@ -63,10 +63,11 @@ export interface DashboardOverviewResponse {
     is_primary: boolean;
   }[];
   ideas_counts: {
-    new: number;
+    unassigned: number;
     to_film: number;
-    in_production: number;
+    to_publish: number;
     published: number;
+    archived: number;
   };
   upcoming_ideas: {
     id: number;

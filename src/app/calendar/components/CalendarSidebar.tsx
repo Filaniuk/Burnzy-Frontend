@@ -2,7 +2,7 @@
 "use client";
 
 import { RefObject, useState } from "react";
-import IdeaCard from "@/app/board/components/IdeaCard";
+import IdeaCard from "@/app/calendar/components/IdeaCard";
 import { CalendarIdea, BrandEvent } from "@/types/calendar";
 import SidebarSection from "./SidebarSection";
 import UpcomingList from "./UpcomingList";

@@ -14,13 +14,12 @@ import IdeaCountCard from "./components/IdeaCountCard";
 import SectionTitle from "./components/SectionTitle";
 import CompetitorLeaderboard from "./components/CompetitorLeaderboard";
 import TrendIdeasManager from "./components/TrendIdeasManager";
-import ChannelInsightsCard from "./components/ChannelInsightsDashoard";
-
 import { DashboardOverviewResponse } from "@/types/dashboard";
 import LoadingAnalysis from "@/components/LoadingAnalysis";
 import ChannelInsightsDashoard from "./components/ChannelInsightsDashoard";
 import { PurpleActionButton } from "@/components/PurpleActionButton";
 import TrendIdeasDashboard from "./components/TrendIdeasDashboard";
+import DashboardPlanModal from "./components/DashboardPlanModal";
 
 export default function DashboardPage() {
   const { user, loading } = useAuth();
@@ -29,6 +28,8 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardOverviewResponse | null>(null);
   const [loadingData, setLoadingData] = useState(true);
   const [showAllTrendIdeas, setShowAllTrendIdeas] = useState(false);
+  const [showPlanModal, setShowPlanModal] = useState(false);
+
 
   useEffect(() => {
     if (!user) return;
@@ -122,10 +123,10 @@ export default function DashboardPage() {
           />
 
           <ActionButton
-            icon={<Users size={36} className="text-[#00F5A0]" />}
-            title="Add Competitor"
-            desc="Track competing channels"
-            onClick={() => router.push("/competitors")}
+            icon={<Calendar size={36} className="text-[#6C63FF]" />}
+            title="Content Plan"
+            desc="Get your unique trendy upload plan"
+            onClick={() => setShowPlanModal(true)}
           />
 
           <ActionButton
@@ -134,6 +135,7 @@ export default function DashboardPage() {
             desc="Plan content & deadlines"
             onClick={() => router.push("/calendar")}
           />
+
         </div>
 
         {/* PRIMARY CHANNEL */}
@@ -234,18 +236,19 @@ export default function DashboardPage() {
         {/* IDEA PIPELINE */}
         <SectionTitle title="Idea Pipeline" />
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-          <IdeaCountCard label="New" count={ideas_counts.new} color="#6C63FF" />
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-6">
+          <IdeaCountCard label="New" count={ideas_counts.unassigned} color="#6C63FF" />
           <IdeaCountCard label="To Film" count={ideas_counts.to_film} color="#00F5A0" />
-          <IdeaCountCard label="In Production" count={ideas_counts.in_production} color="#F8E45C" />
+          <IdeaCountCard label="To Publish" count={ideas_counts.to_publish} color="#F8E45C" />
           <IdeaCountCard label="Published" count={ideas_counts.published} color="#FF6C6C" />
+          <IdeaCountCard label="Archived" count={ideas_counts.archived} color="#FF6C6C" />
         </div>
 
         {/* NEW: Link to Board */}
         <div className="flex justify-center">
           <GradientActionButton
-            onClick={() => router.push("/board")}
-            label="Open Production Board →"
+            onClick={() => router.push("/calendar")}
+            label="Open Production Calender →"
             size="md"
           />
         </div>
@@ -290,19 +293,15 @@ export default function DashboardPage() {
           <TrendIdeasManager tag={primary_channel.tag} version={primary_channel.version} />
         )}
 
-        {/* COMPETITORS */}
-        <SectionTitle title="Competitor Leaderboard" />
 
-        {competitors.length === 0 ? (
-          <EmptyState
-            label="No competitors yet."
-            action="Add competitor"
-            onClick={() => router.push("/competitors")}
-          />
-        ) : (
-          <CompetitorLeaderboard competitors={competitors} />
-        )}
       </motion.div>
+      {showPlanModal && primary_channel && (
+        <DashboardPlanModal
+          channel={primary_channel}
+          onClose={() => setShowPlanModal(false)}
+        />
+      )}
+
     </div>
   );
 }

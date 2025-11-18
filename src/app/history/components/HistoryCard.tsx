@@ -5,14 +5,12 @@ import { motion } from "framer-motion";
 
 interface Props {
   item: any;
-  onSelectPlan: (item: any) => void;
   router: any;
   accentColor: string;
 }
 
-export default function PortfolioCard({
+export default function HistoryCard({
   item,
-  onSelectPlan,
   router,
   accentColor,
 }: Props) {
@@ -67,11 +65,6 @@ export default function PortfolioCard({
               )
             }
             label="View Analysis"
-            size="md"
-          />
-          <GradientActionButton
-            onClick={() => onSelectPlan(item)}
-            label="📅 Content Plan"
             size="md"
           />
         </div>
