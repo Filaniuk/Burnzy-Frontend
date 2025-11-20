@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams, useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { motion } from "framer-motion";
 
@@ -10,11 +10,7 @@ import WeeklyPlanSection from "./components/WeeklyPlanSection";
 import LoadingAnalysis from "@/components/LoadingAnalysis";
 import ConfirmModal from "@/app/pricing/components/ConfirmModal";
 
-import { GradientActionButton } from "@/components/GradientActionButton";
 import { PurpleActionButton } from "@/components/PurpleActionButton";
-
-// Global cache to avoid refetching under React strict mode
-const fetchedPlans = new Set<string>();
 
 export default function ContentPlanPage() {
   const params = useParams();
@@ -34,48 +30,53 @@ export default function ContentPlanPage() {
     color: "red" as "green" | "red" | "yellow",
   });
   const [confirmImport, setConfirmImport] = useState(false);
+  const fetchRef = useRef<string | null>(null);
 
   // ---------------------------------------------
-  // FETCH PLAN
+  // FETCH PLAN (no caching)
   // ---------------------------------------------
-  useEffect(() => {
-    const key = `${tag}-${version}`;
-    if (fetchedPlans.has(key)) return;
-    fetchedPlans.add(key);
+useEffect(() => {
+  const key = `${tag}-${version}-${uploadsPerWeek}-${weeks}`;
 
-    async function fetchPlan() {
-      setLoading(true);
-      try {
-        const res = await apiFetch<any>("/api/v1/content_plan", {
-          method: "POST",
-          body: JSON.stringify({
-            channel_tag: tag,
-            uploads_per_week: uploadsPerWeek,
-            weeks,
-            version,
-          }),
-        });
+  // Prevent double trigger (React Strict Mode)
+  if (fetchRef.current === key) return;
+  fetchRef.current = key;
 
-        if (!res?.data || !res.data.weekly_plan) {
-          throw new Error("Invalid or empty plan data received from server.");
-        }
+  async function fetchPlan() {
+    setLoading(true);
 
-        setPlan(res.data);
-      } catch (err: any) {
-        console.error(err);
-        setFeedback({
-          show: true,
-          title: "Failed to Load Plan",
-          description: err.message || "We couldn’t load your content plan.",
-          color: "red",
-        });
-      } finally {
-        setLoading(false);
+    try {
+      const res = await apiFetch<any>("/api/v1/content_plan", {
+        method: "POST",
+        body: JSON.stringify({
+          channel_tag: tag,
+          uploads_per_week: uploadsPerWeek,
+          weeks,
+          version,
+        }),
+      });
+
+      if (!res?.data || !res.data.weekly_plan) {
+        throw new Error("Invalid or empty plan data received from server.");
       }
-    }
 
-    fetchPlan();
-  }, [tag, version, uploadsPerWeek, weeks]);
+      setPlan(res.data);
+    } catch (err: any) {
+      console.error(err);
+      setFeedback({
+        show: true,
+        title: "Failed to Load Plan",
+        description: err.message || "We couldn’t load your content plan.",
+        color: "red",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  fetchPlan();
+}, [tag, version, uploadsPerWeek, weeks]);
+
 
   // ---------------------------------------------
   // IMPORT PLAN → CALENDAR
@@ -92,11 +93,11 @@ export default function ContentPlanPage() {
     }
 
     try {
-      const res = await apiFetch("/api/v1/calendar/import_plan", {
+      await apiFetch("/api/v1/calendar/import_plan", {
         method: "POST",
         body: JSON.stringify({
           plan_uuid: plan.plan_uuid,
-          mode: "filming", // always TO_FILM for new ideas
+          mode: "filming",
         }),
       });
 
@@ -143,7 +144,8 @@ export default function ContentPlanPage() {
           Something went wrong.
         </motion.h2>
         <p className="text-neutral-400 mb-6 max-w-md">
-          We couldn’t find a content plan for this channel. Try regenerating it.
+          We couldn’t find a content plan for this channel. Try regenerating
+          it.
         </p>
 
         <ConfirmModal
@@ -164,9 +166,11 @@ export default function ContentPlanPage() {
   return (
     <main className="min-h-screen bg-[#0F0E17] text-white py-14 px-4 sm:px-6">
       <div className="max-w-6xl mx-auto space-y-12">
+
         {/* HEADER */}
         <ContentPlanHeader plan={plan} />
-        {/* Add Plan to Calendar */}
+
+        {/* Import Button */}
         <div className="flex justify-center">
           <PurpleActionButton
             label="📅 Import Plan To Calendar"
@@ -174,6 +178,7 @@ export default function ContentPlanPage() {
             onClick={() => setConfirmImport(true)}
           />
         </div>
+
         {/* WEEKLY PLAN */}
         <section className="space-y-10">
           {plan.weekly_plan.map((week: any) => (
@@ -181,10 +186,8 @@ export default function ContentPlanPage() {
           ))}
         </section>
 
-        {/* IMPORT BUTTON */}
+        {/* Back */}
         <div className="text-center mt-14 space-y-6">
-
-          {/* Back Button */}
           <button
             onClick={() => history.back()}
             className="px-5 py-2.5 rounded-xl bg-[#1B1A24] hover:bg-[#2E2D39] 
@@ -195,7 +198,7 @@ export default function ContentPlanPage() {
         </div>
       </div>
 
-      {/* CONFIRM IMPORT MODAL */}
+      {/* CONFIRM IMPORT */}
       <ConfirmModal
         show={confirmImport}
         onCancel={() => setConfirmImport(false)}
@@ -205,11 +208,11 @@ export default function ContentPlanPage() {
         }}
         confirmText="Import"
         title="Add Plan to Calendar?"
-        description="This will add all videos from this plan to your calendar. Existing ideas will keep their status; new ideas will be marked as 'To Film'."
+        description="This will add all videos from this plan to your calendar. Existing ideas keep their status; new ideas become 'To Film'."
         confirmColor="green"
       />
 
-      {/* FEEDBACK MODAL */}
+      {/* FEEDBACK */}
       <ConfirmModal
         show={feedback.show}
         onCancel={() => setFeedback({ ...feedback, show: false })}

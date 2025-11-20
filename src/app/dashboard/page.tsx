@@ -5,14 +5,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Calendar, LineChart, Users, LayoutDashboard } from "lucide-react";
-import { apiFetch, getDashboardOverview } from "@/lib/api";
+import { apiFetch, getDashboardOverview, getUpcomingIdeas } from "@/lib/api";
 
 import { GradientActionButton } from "@/components/GradientActionButton";
 import ActionButton from "./components/ActionButton";
 import EmptyState from "./components/EmptyState";
 import IdeaCountCard from "./components/IdeaCountCard";
 import SectionTitle from "./components/SectionTitle";
-import CompetitorLeaderboard from "./components/CompetitorLeaderboard";
 import TrendIdeasManager from "./components/TrendIdeasManager";
 import { DashboardOverviewResponse } from "@/types/dashboard";
 import LoadingAnalysis from "@/components/LoadingAnalysis";
@@ -20,6 +19,7 @@ import ChannelInsightsDashoard from "./components/ChannelInsightsDashoard";
 import { PurpleActionButton } from "@/components/PurpleActionButton";
 import TrendIdeasDashboard from "./components/TrendIdeasDashboard";
 import DashboardPlanModal from "./components/DashboardPlanModal";
+import UpcomingTimeline from "./components/UpcomingTimeline";
 
 export default function DashboardPage() {
   const { user, loading } = useAuth();
@@ -53,6 +53,18 @@ export default function DashboardPage() {
       <div><LoadingAnalysis message="Loading your dashboard" /></div>
     );
   }
+
+  async function refreshUpcoming() {
+    const res = await getUpcomingIdeas();
+
+    setData(prev => ({
+      ...prev,                    
+      upcoming_ideas: res.data,   
+    }));
+  }
+
+
+
 
   if (!user || !data) {
     return (
@@ -263,26 +275,14 @@ export default function DashboardPage() {
             onClick={() => router.push("/calendar")}
           />
         ) : (
-          <div className="space-y-3">
-            {upcoming_ideas.map((u) => (
-              <motion.div
-                key={u.id}
-                whileHover={{ scale: 1.02 }}
-                className="bg-[#16151E] border border-[#2E2D39] rounded-xl p-4 cursor-pointer"
-                onClick={() => router.push(`/idea/${u.id}`)}
-              >
-                <h3 className="font-semibold text-lg">{u.title}</h3>
-
-                <p className="text-neutral-400 text-sm mt-1">
-                  {u.scheduled_for
-                    ? new Date(u.scheduled_for).toLocaleString()
-                    : "Not scheduled"}{" "}
-                  • {u.status}
-                </p>
-              </motion.div>
-            ))}
-          </div>
+          <UpcomingTimeline
+            upcoming={upcoming_ideas}
+            tag={primary_channel.tag}
+            version={primary_channel.version}
+            onRefreshUpcoming={refreshUpcoming}
+          />
         )}
+
 
         <SectionTitle title="Trend Ideas" />
         {primary_channel && (

@@ -1,4 +1,3 @@
-// app/calendar/page.tsx
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -22,18 +21,24 @@ import {
 import ConfirmModal from "../pricing/components/ConfirmModal";
 
 export default function CalendarPage() {
+  // -----------------------------
+  // STATE
+  // -----------------------------
   const [events, setEvents] = useState<BrandEvent[]>([]);
   const [unscheduled, setUnscheduled] = useState<CalendarIdea[]>([]);
   const [filming, setFilming] = useState<CalendarIdea[]>([]);
   const [publishing, setPublishing] = useState<CalendarIdea[]>([]);
   const [published, setPublished] = useState<CalendarIdea[]>([]);
   const [archived, setArchived] = useState<CalendarIdea[]>([]);
-  const [calendarMeta, setCalendarMeta] = useState<any>()
-  const [modalType, setModalType] =
-    useState<"schedule" | "event" | null>(null);
+  const [calendarMeta, setCalendarMeta] = useState<any>();
+
+  const [modalType, setModalType] = useState<"schedule" | "event" | null>(null);
+  const [activeIdeaId, setActiveIdeaId] = useState<number | null>(null);
+  const [scheduleDate, setScheduleDate] = useState<string | null>(null);
+
   const [showConfirm, setShowConfirm] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<() => void>(() => { });
-  const [cancelAction, setCancelAction] = useState<() => void>(() => { });
+  const [confirmAction, setConfirmAction] = useState<() => void>(() => {});
+  const [cancelAction, setCancelAction] = useState<() => void>(() => {});
   const [confirmMessage, setConfirmMessage] = useState({
     title: "",
     description: "",
@@ -41,15 +46,15 @@ export default function CalendarPage() {
     color: "yellow" as "red" | "yellow" | "green",
   });
 
-  const [activeIdeaId, setActiveIdeaId] = useState<number | null>(null);
-  const [scheduleDate, setScheduleDate] = useState<string | null>(null);
-
+  // -----------------------------
+  // REFS
+  // -----------------------------
   const sidebarRef = useRef<HTMLDivElement | null>(null);
   const draggableRef = useRef<FCDraggable | null>(null);
 
-  // --------------------------
-  // Helpers
-  // --------------------------
+  // -----------------------------
+  // UTILS
+  // -----------------------------
   function isPast(dateStr: string) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -77,13 +82,13 @@ export default function CalendarPage() {
     setShowConfirm(true);
   }
 
-
-  // --------------------------
-  // Unified load()
-  // --------------------------
+  // -----------------------------
+  // LOAD CALENDAR DATA
+  // -----------------------------
   const load = useCallback(async () => {
     const res = await apiFetch("/api/v1/calendar");
-    setCalendarMeta(res.meta)
+    setCalendarMeta(res.meta);
+
     const scheduled: CalendarIdea[] = res.data.scheduled;
     const unsched: CalendarIdea[] = res.data.unscheduled;
 
@@ -98,21 +103,13 @@ export default function CalendarPage() {
     for (const idea of scheduled) {
       const status = idea.status as IdeaStatus;
 
-      // Bucket for sidebar
-      if (status === "to_film") {
-        film.push(idea);
-      } else if (status === "to_publish") {
-        toPublish.push(idea);
-      } else if (status === "published") {
-        publishedIdeas.push(idea);
-      } else if (status === "archived") {
-        archivedIdeas.push(idea);
-      }
+      if (status === "to_film") film.push(idea);
+      else if (status === "to_publish") toPublish.push(idea);
+      else if (status === "published") publishedIdeas.push(idea);
+      else if (status === "archived") archivedIdeas.push(idea);
 
-      // Calendar event (no archived in calendar)
       if (idea.scheduled_for && status !== "unassigned") {
         const colors = getEventColors(status);
-
         mappedEvents.push({
           id: `idea-${idea.id}`,
           title: idea.title,
@@ -137,15 +134,13 @@ export default function CalendarPage() {
     load();
   }, [load]);
 
-  // --------------------------
-  // Enable drag from "Unscheduled"
-  // --------------------------
+  // -----------------------------
+  // ENABLE DRAGGING FROM SIDEBAR
+  // -----------------------------
   useEffect(() => {
     if (!sidebarRef.current) return;
 
-    if (draggableRef.current) {
-      draggableRef.current.destroy();
-    }
+    if (draggableRef.current) draggableRef.current.destroy();
 
     draggableRef.current = new Draggable(sidebarRef.current, {
       itemSelector: ".unscheduled-card",
@@ -158,23 +153,21 @@ export default function CalendarPage() {
     });
 
     return () => {
-      if (draggableRef.current) {
-        draggableRef.current.destroy();
-        draggableRef.current = null;
-      }
+      draggableRef.current?.destroy();
+      draggableRef.current = null;
     };
   }, [unscheduled]);
 
-  // --------------------------
-  // Event drag within calendar (move date, keep status)
-  // --------------------------
+  // -----------------------------
+  // EVENT MOVED INSIDE CALENDAR
+  // -----------------------------
   function handleEventDrop(info: EventDropArg) {
-    const dateStr: string = info.event.startStr;
+    const dateStr = info.event.startStr;
+
     if (isPast(dateStr)) {
       openConfirmModal({
         title: "Invalid Date",
-        description: "You cannot schedule or move content into the past.",
-        confirmText: "Okay",
+        description: "You cannot schedule content in the past.",
         color: "yellow",
         onConfirm: () => {
           info.revert();
@@ -188,37 +181,32 @@ export default function CalendarPage() {
       return;
     }
 
-
-    const ideaId = info.event.extendedProps.idea_id as number;
-    const status = info.event.extendedProps.status as IdeaStatus;
-
     apiFetch("/api/v1/calendar/schedule", {
       method: "POST",
       body: JSON.stringify({
-        idea_id: ideaId,
+        idea_id: info.event.extendedProps.idea_id,
         date: dateStr,
-        status,
+        status: info.event.extendedProps.status,
       }),
     }).then(() => load());
   }
 
-  // --------------------------
-  // Drop from sidebar → calendar
-  // --------------------------
+  // -----------------------------
+  // DROPPED FROM SIDEBAR → CALENDAR
+  // -----------------------------
   function handleExternalDrop(info: ExternalDropArg) {
-    const dateStr: string = info.dateStr;
+    const dateStr = info.dateStr;
+
     if (isPast(dateStr)) {
       openConfirmModal({
         title: "Cannot Schedule in the Past",
         description: "Pick a date today or in the future.",
-        confirmText: "Got it",
         color: "yellow",
         onConfirm: () => setShowConfirm(false),
         onCancel: () => setShowConfirm(false),
       });
       return;
     }
-
 
     const id =
       info.draggedEl?.getAttribute("data-id") ||
@@ -229,23 +217,36 @@ export default function CalendarPage() {
     setScheduleDate(dateStr);
   }
 
-  // --------------------------
-  // Click existing event → Event modal
-  // --------------------------
+  // -----------------------------
+  // CLICK EVENT → OPEN MODAL
+  // -----------------------------
   function handleEventClick(info: EventClickArg) {
-    const ideaId = info.event.extendedProps.idea_id as number;
     setModalType("event");
-    setActiveIdeaId(ideaId);
+    setActiveIdeaId(info.event.extendedProps.idea_id);
   }
 
-  // --------------------------
-  // Upcoming list
-  // --------------------------
-  const sortedEvents = [...events].sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-  );
-  const nextFive = sortedEvents.slice(0, 5);
+  // -----------------------------
+  // DELETE IDEA FROM SIDEBAR
+  // -----------------------------
+  const handleDeleteIdea = (id: number) => {
+    setUnscheduled((prev) => prev.filter((i) => i.id !== id));
+    setFilming((prev) => prev.filter((i) => i.id !== id));
+    setPublishing((prev) => prev.filter((i) => i.id !== id));
+    setPublished((prev) => prev.filter((i) => i.id !== id));
+    setArchived((prev) => prev.filter((i) => i.id !== id));
+    setEvents((prev) => prev.filter((e) => e.extendedProps.idea_id !== id));
+  };
 
+  // -----------------------------
+  // UPCOMING 5 EVENTS
+  // -----------------------------
+  const nextFive = [...events]
+    .sort((a, b) => +new Date(a.date) - +new Date(b.date))
+    .slice(0, 5);
+
+  // -----------------------------
+  // RENDER PAGE
+  // -----------------------------
   return (
     <div
       className="flex min-h-[calc(100vh-80px)] gap-6 text-white"
@@ -260,6 +261,7 @@ export default function CalendarPage() {
         published={published}
         archived={archived}
         nextFive={nextFive}
+        onDeleteIdea={handleDeleteIdea}
       />
 
       <CalendarView

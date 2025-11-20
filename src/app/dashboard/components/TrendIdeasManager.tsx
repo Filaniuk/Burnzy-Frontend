@@ -15,6 +15,7 @@ export default function TrendIdeasManager({
 }) {
   const [ideas, setIdeas] = useState<any[]>([]);
   const [lastGenerated, setLastGenerated] = useState<string | null>(null);
+  const [savedStates, setSavedStates] = useState<Record<string, boolean>>({});
 
   const [loading, setLoading] = useState(false); // loading for initial fetch
   const [generating, setGenerating] = useState(false); // loading for Generate 5 More
@@ -67,7 +68,7 @@ export default function TrendIdeasManager({
         <PurpleActionButton
           label="Generate 5 More"
           onClick={generateMore}
-          loading={generating}  
+          loading={generating}
           disabled={generating}
           size="md"
         />
@@ -89,23 +90,41 @@ export default function TrendIdeasManager({
           >
             <h3 className="font-semibold">{i.title}</h3>
             <p className="text-neutral-400 text-sm">{i.hook}</p>
+            {savedStates[i.uuid] && (
+              <p className="text-[#00F5A0] text-sm font-medium mt-2">
+                ✓ Saved to your calendar
+              </p>
+            )}
 
             <div className="mt-3 flex gap-3">
               <GradientActionButton
-                label="Save Idea"
+                label={savedStates[i.uuid] ? "Saved!" : "Save Idea"}
                 size="sm"
                 onClick={async () => {
-                  await apiFetch("/api/v1/ideas/save_from_trend", {
-                    method: "POST",
-                    body: JSON.stringify({
-                      idea_uuid: i.uuid,
-                      channel_tag: tag,
-                      version,
-                      user_title: i.title,
-                    }),
-                  });
+                  try {
+                    await apiFetch("/api/v1/ideas/save_from_trend", {
+                      method: "POST",
+                      body: JSON.stringify({
+                        idea_uuid: i.uuid,
+                        channel_tag: tag,
+                        version,
+                        user_title: i.title,
+                      }),
+                    });
+
+                    setSavedStates((prev) => ({ ...prev, [i.uuid]: true }));
+
+                    // Auto-hide success message after 3 seconds
+                    setTimeout(() => {
+                      setSavedStates((prev) => ({ ...prev, [i.uuid]: false }));
+                    }, 3000);
+                  } catch (err) {
+                    console.error(err);
+                  }
                 }}
               />
+
+
               <GradientActionButton
                 label="🔍 Explore Full Idea"
                 size="sm"

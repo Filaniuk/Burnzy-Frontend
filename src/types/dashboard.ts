@@ -117,6 +117,8 @@ export interface DashboardUpcomingIdea {
   title: string;
   scheduled_for: string | null;
   status: string;
+  uuid: string
+  is_manual: boolean
 }
 
 export interface DashboardTrendBlock {

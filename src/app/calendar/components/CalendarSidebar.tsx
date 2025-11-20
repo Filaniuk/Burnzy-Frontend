@@ -16,6 +16,7 @@ interface CalendarSidebarProps {
   archived: CalendarIdea[];
   nextFive: BrandEvent[];
   meta: any;
+  onDeleteIdea: (id: number) => void;
 }
 
 export default function CalendarSidebar({
@@ -27,6 +28,7 @@ export default function CalendarSidebar({
   archived,
   nextFive,
   meta,
+  onDeleteIdea
 }: CalendarSidebarProps) {
   const [showUnscheduled, setShowUnscheduled] = useState(false);
   const [showFilming, setShowFilming] = useState(false);
@@ -54,7 +56,7 @@ export default function CalendarSidebar({
               data-id={idea.id}
               data-title={idea.title}
             >
-              <IdeaCard idea={idea as any} tag={meta.channel_tag} version={meta.version} />
+              <IdeaCard idea={idea as any} tag={meta.channel_tag} version={meta.version} onDelete={onDeleteIdea} />
             </div>
           ))}
           {unscheduled.length === 0 && (
@@ -76,7 +78,7 @@ export default function CalendarSidebar({
         <div className="space-y-3">
           {filming.map((idea) => (
             <div key={idea.id} className="pointer-events-none opacity-85">
-              <IdeaCard idea={idea as any} tag={meta.channel_tag} version={meta.version} />
+              <IdeaCard idea={idea as any} tag={meta.channel_tag} version={meta.version} onDelete={onDeleteIdea} />
             </div>
           ))}
           {filming.length === 0 && (
@@ -98,7 +100,7 @@ export default function CalendarSidebar({
         <div className="space-y-3">
           {publishing.map((idea) => (
             <div key={idea.id} className="pointer-events-none opacity-85">
-              <IdeaCard idea={idea as any} tag={meta.channel_tag} version={meta.version} />
+              <IdeaCard idea={idea as any} tag={meta.channel_tag} version={meta.version} onDelete={onDeleteIdea}/>
             </div>
           ))}
           {publishing.length === 0 && (
@@ -120,7 +122,7 @@ export default function CalendarSidebar({
         <div className="space-y-3">
           {published.map((idea) => (
             <div key={idea.id} className="pointer-events-none opacity-85">
-              <IdeaCard idea={idea as any} tag={meta.channel_tag} version={meta.version} />
+              <IdeaCard idea={idea as any} tag={meta.channel_tag} version={meta.version} onDelete={onDeleteIdea}/>
             </div>
           ))}
           {published.length === 0 && (
@@ -142,7 +144,7 @@ export default function CalendarSidebar({
         <div className="space-y-3">
           {archived.map((idea) => (
             <div key={idea.id} className="pointer-events-none opacity-60">
-              <IdeaCard idea={idea as any} tag={meta.channel_tag} version={meta.version} />
+              <IdeaCard idea={idea as any} tag={meta.channel_tag} version={meta.version} onDelete={onDeleteIdea}/>
             </div>
           ))}
           {archived.length === 0 && (
