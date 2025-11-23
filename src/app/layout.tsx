@@ -1,3 +1,4 @@
+
 // src/app/layout.tsx
 import "../styles/globals.css";
 import { AuthProvider } from "@/context/AuthContext";
@@ -18,8 +19,8 @@ export default function RootLayout({
     <html lang="en">
       <body className="bg-[#0F0E17] text-white">
         <AuthProvider>
+          <Header/>
           <div className="max-w-6xl mx-auto px-6">
-            <Header />
             <main>{children}</main>
             <div id="drag-portal" />
           </div>

@@ -10,7 +10,17 @@ export function Header() {
   const { user, loading } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <header className="sticky top-0 z-40 w-full bg-[#0F0E17]/80 backdrop-blur-lg border-b border-[#1D1C26]">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between opacity-50">
+          <div className="text-2xl font-bold text-white">YT <span className="text-[#6C63FF]">Analyzer</span></div>
+          <div className="h-6 w-6 rounded-md bg-neutral-700 animate-pulse" />
+        </div>
+      </header>
+    );
+  }
+
 
   // --- Animation variants ---
   const menuVariants = {
@@ -18,6 +28,7 @@ export function Header() {
     visible: { opacity: 1, y: 0, transition: { duration: 0.25 } },
     exit: { opacity: 0, y: -10, transition: { duration: 0.2 } },
   };
+
 
   return (
     <header className="sticky top-0 z-40 w-full bg-[#0F0E17]/80 backdrop-blur-lg border-b border-[#1D1C26]">
