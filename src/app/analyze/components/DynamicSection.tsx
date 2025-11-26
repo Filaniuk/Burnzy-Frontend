@@ -28,7 +28,7 @@ export default function DynamicSection({
             animate="visible"
             exit="exit"
           >
-            <ChannelInsights tag={tag} />
+            <ChannelInsights tag={tag} version={version}/>
           </motion.div>
         )}
         {activeSection === "ideas" && (

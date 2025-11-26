@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { apiFetch } from "@/lib/api";
@@ -28,7 +28,7 @@ export default function AnalyzePage() {
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-const [forceRefresh, setForceRefresh] = useState(true);
+  const [forceRefresh, setForceRefresh] = useState(true);
   const [feedback, setFeedback] = useState<{
     show: boolean;
     title: string;
@@ -37,12 +37,16 @@ const [forceRefresh, setForceRefresh] = useState(true);
   }>({ show: false, title: "", description: "", color: "red" });
 
   const router = useRouter();
+  const loadedRef = useRef(false);
 
   // --------------------------------------------------
   // Load existing analysis from URL params
   // --------------------------------------------------
   useEffect(() => {
     if (!queryTag) return;
+
+    if (loadedRef.current) return;
+    loadedRef.current = true;
 
     async function fetchExisting() {
       setLoading(true);
@@ -240,12 +244,12 @@ const [forceRefresh, setForceRefresh] = useState(true);
             )}
             <div className="py-2">
               <ToggleSwitch
-              enabled={forceRefresh}
-              onToggle={() => setForceRefresh(prev => !prev)}
-              label="Force Fresh Analysis (recommended)"
-            />
+                enabled={forceRefresh}
+                onToggle={() => setForceRefresh(prev => !prev)}
+                label="Force Fresh Analysis (recommended)"
+              />
             </div>
-            
+
 
             <motion.button
               whileTap={{ scale: 0.97 }}

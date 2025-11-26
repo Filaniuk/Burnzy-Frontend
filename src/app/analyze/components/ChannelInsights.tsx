@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import { apiFetch } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { BarChart2, Zap, TrendingUp, Lightbulb } from "lucide-react";
+import { version } from "os";
 
 type Insight = {
   title: string;
@@ -26,7 +27,7 @@ type ChannelInsightsResponse = {
   };
 };
 
-export default function ChannelInsights({ tag }: { tag: string }) {
+export default function ChannelInsights({ tag, version }: { tag: string, version: number }) {
   const [insights, setInsights] = useState<Insight[]>([]);
   const [scale, setScale] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,7 +48,7 @@ export default function ChannelInsights({ tag }: { tag: string }) {
           "/api/v1/channel_insights",
           {
             method: "POST",
-            body: JSON.stringify({ channel_tag: tag }),
+            body: JSON.stringify({ channel_tag: tag, version: version}),
           }
         );
 
@@ -62,7 +63,7 @@ export default function ChannelInsights({ tag }: { tag: string }) {
     };
 
     fetchInsights();
-  }, [tag]);
+  }, [tag, version]);
 
   const insightIcons = useMemo(
     () => [Lightbulb, TrendingUp, Zap, BarChart2],
