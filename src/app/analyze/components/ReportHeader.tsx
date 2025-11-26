@@ -38,7 +38,7 @@ export default function ReportHeader({
     };
 
     return (
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-8 gap-6">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4 gap-6">
             <motion.div variants={fadeUp}>
                 <h2 className="text-3xl font-bold mb-2">
                     {type === "channel" ? "Channel Analysis" : "Topic Strategy Overview"}

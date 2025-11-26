@@ -1,75 +1,69 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/api";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { GradientActionButton } from "@/components/GradientActionButton";
 import { PurpleActionButton } from "@/components/PurpleActionButton";
+import { apiFetch } from "@/lib/api";
 
 export default function TrendIdeasManager({
   tag,
   version,
+  ideas,
+  lastGenerated,
+  onGenerateMore,
 }: {
   tag: string;
   version: number;
+  ideas: any[];
+  lastGenerated: string | null;
+  onGenerateMore: () => Promise<void>;
 }) {
-  const [ideas, setIdeas] = useState<any[]>([]);
-  const [lastGenerated, setLastGenerated] = useState<string | null>(null);
   const [savedStates, setSavedStates] = useState<Record<string, boolean>>({});
-
-  const [loading, setLoading] = useState(false); // loading for initial fetch
-  const [generating, setGenerating] = useState(false); // loading for Generate 5 More
   const [limit, setLimit] = useState(2);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  async function load() {
-    setLoading(true);
+  async function generateMore() {
+    setLoadingMore(true);
+    await onGenerateMore();
+    setLoadingMore(false);
+  }
+
+  async function saveIdea(i: any) {
     try {
-      const res = await apiFetch("/api/v1/trend_ideas/latest_full", {
+      await apiFetch("/api/v1/ideas/save_from_trend", {
         method: "POST",
-        body: JSON.stringify({ channel_tag: tag, version }),
+        body: JSON.stringify({
+          idea_uuid: i.uuid,
+          channel_tag: tag,
+          version,
+          user_title: i.title,
+        }),
       });
 
-      setIdeas(res.data?.ideas?.reverse());
-      setLastGenerated(res.data.last_generated);
+
     } catch (err) {
       console.error(err);
     }
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function generateMore() {
-    try {
-      setGenerating(true);
-
-      await apiFetch("/api/v1/trend_ideas/generate_more", {
-        method: "POST",
-        body: JSON.stringify({ channel_tag: tag, version }),
-      });
-
-      await load();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setGenerating(false);
+    finally {
+      setSavedStates((prev) => ({ ...prev, [i.uuid]: true }));
+      setTimeout(() => {
+        setSavedStates((prev) => ({ ...prev, [i.uuid]: false }));
+      }, 5000);
     }
   }
 
   return (
     <div className="bg-[#16151E] border border-[#2E2D39] rounded-xl p-6 mt-6">
       <div className="flex justify-between mb-4">
-        <h2 className="text-xl font-bold bg-gradient-to-r from-[#00F5A0] to-[#6C63FF] bg-clip-text text-transparent text-center">
+        <h2 className="text-xl font-bold bg-gradient-to-r from-[#00F5A0] to-[#6C63FF] bg-clip-text text-transparent">
           Latest Trend Ideas
         </h2>
 
         <PurpleActionButton
           label="Generate 5 More"
           onClick={generateMore}
-          loading={generating}
-          disabled={generating}
+          loading={loadingMore}
           size="md"
         />
       </div>
@@ -80,7 +74,6 @@ export default function TrendIdeasManager({
         </p>
       )}
 
-      {/* Idea List */}
       <div className="space-y-3">
         {ideas.slice(0, limit).map((i) => (
           <motion.div
@@ -90,6 +83,7 @@ export default function TrendIdeasManager({
           >
             <h3 className="font-semibold">{i.title}</h3>
             <p className="text-neutral-400 text-sm">{i.hook}</p>
+
             {savedStates[i.uuid] && (
               <p className="text-[#00F5A0] text-sm font-medium mt-2">
                 ✓ Saved to your calendar
@@ -100,36 +94,17 @@ export default function TrendIdeasManager({
               <GradientActionButton
                 label={savedStates[i.uuid] ? "Saved!" : "Save Idea"}
                 size="sm"
-                onClick={async () => {
-                  try {
-                    await apiFetch("/api/v1/ideas/save_from_trend", {
-                      method: "POST",
-                      body: JSON.stringify({
-                        idea_uuid: i.uuid,
-                        channel_tag: tag,
-                        version,
-                        user_title: i.title,
-                      }),
-                    });
-
-                    setSavedStates((prev) => ({ ...prev, [i.uuid]: true }));
-
-                    // Auto-hide success message after 3 seconds
-                    setTimeout(() => {
-                      setSavedStates((prev) => ({ ...prev, [i.uuid]: false }));
-                    }, 3000);
-                  } catch (err) {
-                    console.error(err);
-                  }
-                }}
+                onClick={() => saveIdea(i)}
               />
-
 
               <GradientActionButton
                 label="🔍 Explore Full Idea"
                 size="sm"
                 onClick={() =>
-                  (window.location.href = `/idea/${i.uuid}?tag=${tag}&version=${version}`)
+                  window.open(
+                    `/idea/${i.uuid}?tag=${tag}&version=${version}`,
+                    "_blank"
+                  )
                 }
               />
             </div>

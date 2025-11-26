@@ -15,14 +15,29 @@ export async function apiFetch<T>(path: string, init?: RequestInit) {
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`${res.status}: ${text}`);
-  }
+    let text: any = null;
 
-  const resJson = res.json() as Promise<T>;
-  console.log(resJson);
-  return resJson;
+    try {
+      text = await res.json();      // try json
+    } catch {
+      text = await res.text();      // fallback text
+    }
+
+    // Throw structured error (NOT Error object)
+    throw {
+      status: res.status,
+      detail: text?.detail || text,
+      raw: text,
+      isApiError: true,
+    };
+  }
+  const json = res.json() as Promise<T>;
+
+  console.log(json)
+
+  return json;
 }
+
 
 
 /* ---------- Dashboard API helpers ---------- */

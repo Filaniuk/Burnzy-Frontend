@@ -5,9 +5,10 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
+import AccountMenu from "./AccountMenu";
 
 export function Header() {
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
   if (loading) {
@@ -32,7 +33,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 w-full bg-[#0F0E17]/80 backdrop-blur-lg border-b border-[#1D1C26]">
-      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
         {/* --- Logo --- */}
         <Link
           href="/"
@@ -51,15 +52,16 @@ export function Header() {
               >
                 Try for free
               </Link>
+              <Link href="/dashboard" className="hover:text-[#00F5A0] transition">
+                Dashboard
+              </Link>
               <Link href="/history" className="hover:text-[#00F5A0] transition">
                 History
               </Link>
               <Link href="/pricing" className="hover:text-[#00F5A0] transition">
                 Pricing
               </Link>
-              <Link href="/dashboard" className="hover:text-[#00F5A0] transition">
-                Dashboard
-              </Link>
+
             </>
           ) : (
             <>
@@ -69,21 +71,16 @@ export function Header() {
               >
                 Analyze 🚀
               </Link>
+              <Link href="/dashboard" className="hover:text-[#00F5A0] transition">
+                Dashboard
+              </Link>
               <Link href="/history" className="hover:text-[#00F5A0] transition">
                 History
               </Link>
               <Link href="/pricing" className="hover:text-[#00F5A0] transition">
                 Pricing
               </Link>
-              <Link href="/dashboard" className="hover:text-[#00F5A0] transition">
-                Dashboard
-              </Link>
-              <Link
-                href="/auth/dashboard"
-                className="text-[#00F5A0] font-medium hover:underline transition"
-              >
-                {user.email}
-              </Link>
+              <AccountMenu />
             </>
           )}
         </nav>
@@ -120,6 +117,13 @@ export function Header() {
                     Try for free
                   </Link>
                   <Link
+                    href="/dashboard"
+                    className="hover:text-[#00F5A0]"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Dashboard
+                  </Link>
+                  <Link
                     href="/history"
                     className="hover:text-[#00F5A0]"
                     onClick={() => setMenuOpen(false)}
@@ -133,13 +137,7 @@ export function Header() {
                   >
                     Pricing
                   </Link>
-                  <Link
-                    href="/dashboard"
-                    className="hover:text-[#00F5A0]"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    Dashboard
-                  </Link>
+
                 </>
               ) : (
                 <>
@@ -151,6 +149,13 @@ export function Header() {
                     Analyze 🚀
                   </Link>
                   <Link
+                    href="/dashboard"
+                    className="hover:text-[#00F5A0]"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Dashboard
+                  </Link>
+                  <Link
                     href="/history"
                     className="hover:text-[#00F5A0]"
                     onClick={() => setMenuOpen(false)}
@@ -164,20 +169,23 @@ export function Header() {
                   >
                     Pricing
                   </Link>
-                  <Link
-                    href="/dashboard"
-                    className="hover:text-[#00F5A0]"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    Dashboard
-                  </Link>
-                  <Link
-                    href="/auth/dashboard"
-                    className="text-[#00F5A0] font-medium text-center hover:underline"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    {user.email}
-                  </Link>
+
+                  <div className="flex flex-col gap-3 pt-2 border-t border-[#1D1C26] mt-2">
+                    <span className="text-center text-[#00F5A0] font-semibold">
+                      {user.email}
+                    </span>
+
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setTimeout(() => logout(), 200);
+                      }}
+                      className="text-center text-red-400 hover:text-red-300 py-2"
+                    >
+                      Log out
+                    </button>
+                  </div>
+
                 </>
               )}
             </div>

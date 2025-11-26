@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Calendar, LineChart, Users, LayoutDashboard } from "lucide-react";
 import { apiFetch, getDashboardOverview, getUpcomingIdeas } from "@/lib/api";
@@ -20,10 +20,13 @@ import { PurpleActionButton } from "@/components/PurpleActionButton";
 import TrendIdeasDashboard from "./components/TrendIdeasDashboard";
 import DashboardPlanModal from "./components/DashboardPlanModal";
 import UpcomingTimeline from "./components/UpcomingTimeline";
+import ChannelInsightsSection from "./components/ChannelInsightsSection";
+import TrendIdeasSection from "./components/TrendIdeasSection";
 
 export default function DashboardPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const loadedRef = useRef(false);
 
   const [data, setData] = useState<DashboardOverviewResponse | null>(null);
   const [loadingData, setLoadingData] = useState(true);
@@ -33,6 +36,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!user) return;
+
+    if (loadedRef.current) return;
+    loadedRef.current = true;
 
     async function load() {
       try {
@@ -58,13 +64,10 @@ export default function DashboardPage() {
     const res = await getUpcomingIdeas();
 
     setData(prev => ({
-      ...prev,                    
-      upcoming_ideas: res.data,   
+      ...prev,
+      upcoming_ideas: res.data,
     }));
   }
-
-
-
 
   if (!user || !data) {
     return (
@@ -103,7 +106,7 @@ export default function DashboardPage() {
       >
         {/* HEADER */}
         <div className="text-center">
-          <h1 className="text-4xl font-extrabold bg-gradient-to-r from-[#6C63FF] to-[#00F5A0] bg-clip-text text-transparent">
+          <h1 className="text-4xl sm:text-5xl font-extrabold bg-gradient-to-r from-[#6C63FF] to-[#00F5A0] bg-clip-text text-transparent">
             Creator Dashboard
           </h1>
           <p className="text-neutral-400 mt-2">
@@ -232,18 +235,10 @@ export default function DashboardPage() {
             </div>
 
             {/* CHANNEL INSIGHTS */}
-            {primary_channel?.insights && !primary_channel.is_topic && (
-              <>
-                <SectionTitle title="Channel Insights" />
-
-                <ChannelInsightsDashoard
-                  insights={primary_channel.insights.recommendations}
-                  scale={primary_channel.insights.scale}
-                />
-              </>
-            )}
+            <ChannelInsightsSection primary_channel={primary_channel} />
           </>
         )}
+
 
         {/* IDEA PIPELINE */}
         <SectionTitle title="Idea Pipeline" />
@@ -265,6 +260,11 @@ export default function DashboardPage() {
           />
         </div>
 
+        <TrendIdeasSection
+          tag={primary_channel.tag}
+          version={primary_channel.version}
+        />
+
         {/* UPCOMING CONTENT */}
         <SectionTitle title="Upcoming Content" />
 
@@ -281,16 +281,6 @@ export default function DashboardPage() {
             version={primary_channel.version}
             onRefreshUpcoming={refreshUpcoming}
           />
-        )}
-
-
-        <SectionTitle title="Trend Ideas" />
-        {primary_channel && (
-          <TrendIdeasDashboard tag={primary_channel.tag} version={primary_channel.version} />
-        )}
-
-        {primary_channel && (
-          <TrendIdeasManager tag={primary_channel.tag} version={primary_channel.version} />
         )}
 
 

@@ -14,6 +14,7 @@ import DynamicSection from "./DynamicSection";
 import InfoGrid from "./InfoGrid";
 import KeywordSection from "./KeywordSection";
 import ReportHeader from "./ReportHeader";
+import ToggleSwitch from "@/components/ToggleSwitch";
 
 // -----------------------------------------------
 type AnalysisData = {
@@ -60,7 +61,6 @@ export default function AnalysisReport({ data, type }: Props) {
   // Detect if this analysis is primary
   // -----------------------------------------------
   useEffect(() => {
-    console.log("data:", data)
     if (!data?.meta?.id || !user) return;
 
     if (user.primary_channel_id === data.meta.id) {
@@ -147,29 +147,12 @@ export default function AnalysisReport({ data, type }: Props) {
         />
 
         {/* ⭐ PRIMARY CHANNEL TOGGLE */}
-        <div className="flex items-center justify-center mt-10 mb-12 gap-4 select-none">
-          <button
-            onClick={togglePrimary}
-            type="button"
-            className={`relative inline-flex w-14 h-7 rounded-full transition-all duration-300 
-      ${isPrimary ? "bg-[#00F5A0]" : "bg-[#2E2D39]"} 
-      shadow-inner cursor-pointer outline-none border border-[#3A3A45]`}
-            style={{ pointerEvents: "auto" }}
-          >
-            <span
-              className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow-lg transform transition-all duration-300 
-        ${isPrimary ? "translate-x-7" : "translate-x-0"}`}
-              style={{ pointerEvents: "none" }}
-            />
-          </button>
-
-          <span
-            onClick={togglePrimary}
-            className="text-neutral-300 text-sm cursor-pointer hover:text-white transition"
-            style={{ pointerEvents: "auto" }}
-          >
-            Make this my primary {type === "channel" ? "channel" : "topic"}
-          </span>
+        <div className="flex items-center justify-center mb-8 gap-4 select-none">
+          <ToggleSwitch
+            enabled={isPrimary}
+            onToggle={togglePrimary}
+            label={`Make this my primary ${type === "channel" ? "channel" : "topic"}`}
+          />
         </div>
 
 

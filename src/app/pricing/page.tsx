@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { Check } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { PLANS } from "./pricing";
 import ConfirmModal from "./components/ConfirmModal";
 import { apiFetch } from "@/lib/api";
@@ -19,8 +19,8 @@ export default function PricingPage() {
   const [canceling, setCanceling] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const loadedRef = useRef(false);
 
-  // ✅ Unified feedback modal
   const [feedback, setFeedback] = useState<{
     show: boolean;
     title: string;
@@ -33,6 +33,10 @@ export default function PricingPage() {
   // --------------------------------------------------
   useEffect(() => {
     if (!user) return;
+
+    if (loadedRef.current) return;
+    loadedRef.current = true;
+
     const fetchPlan = async () => {
       try {
         const data = await apiFetch<{ plan_name: string; expires_at: string | null }>(
@@ -221,14 +225,41 @@ export default function PricingPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl w-full">
         {PLANS.map((plan, index) => {
           const isCurrent = currentPlan === plan.name.toLowerCase();
+          const currentObj = PLANS.find(
+            (p) => p.name.toLowerCase() === currentPlan
+          );
+          const currentPrice = currentObj?.price ?? 0;
+          const isUpgrade = plan.price > currentPrice;
+          const isDowngrade = plan.price < currentPrice;
 
           const handleClick = () => {
-            if (currentPlan === "business" && plan.name.toLowerCase() === "pro") {
+            if (isDowngrade) {
               confirmDowngrade(plan.name);
             } else {
               handlePlanChange(plan.name);
             }
           };
+
+          /* ---------- Correct Button Logic ---------- */
+          let label = "";
+          let style = "";
+
+          if (isCurrent) {
+            label = "Current Plan";
+            style = "bg-white/10 text-neutral-400 cursor-not-allowed";
+          } else if (loadingPlan === plan.name) {
+            label = "Processing...";
+            style = "bg-white/20 text-white opacity-60";
+          } else if (!currentPlan || currentPlan === "free") {
+            label = `Upgrade to ${plan.name}`;
+            style = "bg-[#00F5A0] text-black hover:bg-[#00d98b]";
+          } else if (isUpgrade) {
+            label = `Upgrade to ${plan.name}`;
+            style = "bg-[#00F5A0] text-black hover:bg-[#00d98b]";
+          } else if (isDowngrade) {
+            label = `Downgrade to ${plan.name}`;
+            style = "bg-red-600 text-white hover:bg-red-700";
+          }
 
           return (
             <motion.div
@@ -237,10 +268,9 @@ export default function PricingPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.45, delay: index * 0.1 }}
               className={`rounded-2xl p-8 flex flex-col justify-between shadow-lg border 
-                ${
-                  plan.highlight
-                    ? "border-[#00F5A0] bg-[#16151E]"
-                    : "border-[#1F1E29] bg-[#12111A]"
+                ${plan.highlight
+                  ? "border-[#00F5A0] bg-[#16151E]"
+                  : "border-[#1F1E29] bg-[#12111A]"
                 } hover:scale-[1.02] transition-transform`}
             >
               <div>
@@ -260,7 +290,7 @@ export default function PricingPage() {
               {plan.name === "Free" ? (
                 <button
                   onClick={() =>
-                    (window.location.href = user ? "/auth/dashboard" : "/login")
+                    (window.location.href = user ? "/dashboard" : "/login")
                   }
                   className="w-full py-3 rounded-xl font-semibold transition bg-white/10 hover:bg-white/20 text-white"
                 >
@@ -269,18 +299,10 @@ export default function PricingPage() {
               ) : (
                 <button
                   onClick={handleClick}
-                  disabled={loadingPlan === plan.name || isCurrent}
-                  className={`w-full py-3 rounded-xl font-semibold transition-colors ${
-                    plan.highlight
-                      ? "bg-[#00F5A0] text-black hover:bg-[#00d98b]"
-                      : "bg-white/10 hover:bg-white/20 text-white"
-                  } ${loadingPlan === plan.name ? "opacity-60" : ""}`}
+                  disabled={isCurrent || loadingPlan === plan.name}
+                  className={`w-full py-3 rounded-xl font-semibold transition-colors ${style}`}
                 >
-                  {isCurrent
-                    ? "Current Plan"
-                    : loadingPlan === plan.name
-                    ? "Processing..."
-                    : plan.buttonText}
+                  {label}
                 </button>
               )}
             </motion.div>

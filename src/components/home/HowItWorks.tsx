@@ -17,7 +17,7 @@ export default function HowItWorks() {
     {
       number: 1,
       title: "Submit your input",
-      desc: "Drop a YouTube link or enter a topic in seconds.",
+      desc: "Drop a YouTube link or enter a topic.",
       icon: <Lightbulb className="w-6 h-6 text-[#00F5A0]" />,
       glow: "from-[#00F5A0]/60 to-[#00F5A0]/0",
       ring: "border-[#00F5A0]",
@@ -25,7 +25,7 @@ export default function HowItWorks() {
     {
       number: 2,
       title: "Analyze & discover",
-      desc: "AI studies live trends and audience patterns to generate topic ideas.",
+      desc: "Our AI Model studies live trends and audience patterns to generate topic ideas and complete scripts.",
       icon: <LineChart className="w-6 h-6 text-[#6C63FF]" />,
       glow: "from-[#6C63FF]/60 to-[#6C63FF]/0",
       ring: "border-[#6C63FF]",
@@ -33,7 +33,7 @@ export default function HowItWorks() {
     {
       number: 3,
       title: "Get your custom plan",
-      desc: "Receive your personalized content schedule—fully written and ready to publish.",
+      desc: "Receive your personalized content plan written and ready to publish.",
       icon: <Rocket className="w-6 h-6 text-[#00F5A0]" />,
       glow: "from-[#00F5A0]/60 to-[#00F5A0]/0",
       ring: "border-[#00F5A0]",

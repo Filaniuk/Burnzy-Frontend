@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api";
 import AnalysisReport from "@/app/analyze/components/AnalysisReport";
 import LoadingAnalysis from "@/components/LoadingAnalysis";
 import ConfirmModal from "@/app/pricing/components/ConfirmModal";
+import ToggleSwitch from "@/components/ToggleSwitch";
 
 type AnalysisResponse = {
   status: string;
@@ -27,6 +28,7 @@ export default function AnalyzePage() {
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
+const [forceRefresh, setForceRefresh] = useState(true);
   const [feedback, setFeedback] = useState<{
     show: boolean;
     title: string;
@@ -78,12 +80,16 @@ export default function AnalyzePage() {
     setLoading(true);
     setResult(null);
 
-    const path =
-      mode === "channel" ? "/api/v1/analyze_channel" : "/api/v1/analyze_topic";
+    let path =
+      mode === "channel" ?
+        `/api/v1/analyze_channel?force_refresh=${forceRefresh}`
+        : `/api/v1/analyze_topic?force_refresh=${forceRefresh}`;
     const body =
       mode === "channel"
         ? { channel_url: input, user_query: context }
         : { topic: input, user_goal: context };
+
+
 
     try {
       const data = await apiFetch<AnalysisResponse>(path, {
@@ -188,11 +194,10 @@ export default function AnalyzePage() {
                 setInput("");
                 setContext("");
               }}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                mode === "channel"
-                  ? "bg-[#00F5A0] text-black"
-                  : "text-neutral-400 hover:text-white"
-              }`}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${mode === "channel"
+                ? "bg-[#00F5A0] text-black"
+                : "text-neutral-400 hover:text-white"
+                }`}
             >
               Analyze Channel
             </button>
@@ -202,11 +207,10 @@ export default function AnalyzePage() {
                 setInput("");
                 setContext("");
               }}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                mode === "topic"
-                  ? "bg-[#6C63FF] text-white"
-                  : "text-neutral-400 hover:text-white"
-              }`}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${mode === "topic"
+                ? "bg-[#6C63FF] text-white"
+                : "text-neutral-400 hover:text-white"
+                }`}
             >
               Research Topic
             </button>
@@ -234,6 +238,14 @@ export default function AnalyzePage() {
                 className="w-full rounded-xl bg-[#1B1A24] px-4 py-3 text-white placeholder-neutral-500 border border-[#2E2D39] focus:outline-none focus:ring-1 focus:ring-[#6C63FF]"
               />
             )}
+            <div className="py-2">
+              <ToggleSwitch
+              enabled={forceRefresh}
+              onToggle={() => setForceRefresh(prev => !prev)}
+              label="Force Fresh Analysis (recommended)"
+            />
+            </div>
+            
 
             <motion.button
               whileTap={{ scale: 0.97 }}

@@ -1,10 +1,13 @@
 "use client";
+
 import { useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
+import { apiFetch } from "@/lib/api";
 
 interface User {
   email: string;
   plan: string;
+  primary_channel_id?: number;
 }
 
 interface AuthContextType {
@@ -21,15 +24,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  // -------------------------------------------------------------
+  // REFRESH USER SESSION (uses apiFetch)
+  // -------------------------------------------------------------
   const refresh = async () => {
     setLoading(true);
+
     try {
-      const res = await fetch("http://localhost:8000/auth/me", {
-        credentials: "include",
+      const res = await apiFetch<User>("/auth/me", {
+        method: "GET",
       });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setUser(data);
+
+      if (!res) throw new Error("Invalid response");
+
+      setUser(res);
     } catch {
       setUser(null);
     } finally {
@@ -37,15 +45,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  // -------------------------------------------------------------
+  // LOGOUT (uses apiFetch)
+  // -------------------------------------------------------------
   const logout = async () => {
-    await fetch("http://localhost:8000/auth/logout", {
-      method: "POST",
-      credentials: "include",
-    });
+    try {
+      await apiFetch("/auth/logout", {
+        method: "POST",
+      });
+    } catch (e) {
+      console.error("Logout request failed:", e);
+    }
+
     setUser(null);
-    router.push("/login")
+    router.push("/login");
   };
 
+  // -------------------------------------------------------------
+  // INITIAL SESSION LOAD
+  // -------------------------------------------------------------
   useEffect(() => {
     refresh();
   }, []);
@@ -59,6 +77,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be inside AuthProvider");
+  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
   return ctx;
 };
