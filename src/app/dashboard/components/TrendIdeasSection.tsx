@@ -32,7 +32,9 @@ export default function TrendIdeasSection({ tag, version }: { tag: string; versi
         body: JSON.stringify({ channel_tag: tag, version }),
       });
 
-      setIdeas(res?.data?.ideas?.reverse() || []);
+      const rawIdeas = res?.data?.ideas.reverse() || [];
+
+      setIdeas(rawIdeas); // Manager gets original
       setLastGenerated(res?.data?.last_generated || null);
 
     } catch (err: any) {
@@ -120,7 +122,7 @@ export default function TrendIdeasSection({ tag, version }: { tag: string; versi
 
       {!loading && ideas && ideas.length > 0 && (
         <div className="flex flex-col gap-10">
-          <TrendIdeasDashboard tag={tag} version={version} ideas={ideas} lastGenerated={lastGenerated} />
+          <TrendIdeasDashboard tag={tag} version={version} ideas={ideas} />
           <TrendIdeasManager
             ideas={ideas}
             lastGenerated={lastGenerated}

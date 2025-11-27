@@ -268,20 +268,13 @@ export default function DashboardPage() {
         {/* UPCOMING CONTENT */}
         <SectionTitle title="Upcoming Content" />
 
-        {upcoming_ideas.length === 0 ? (
-          <EmptyState
-            label="Nothing scheduled yet."
-            action="Open calendar"
-            onClick={() => router.push("/calendar")}
-          />
-        ) : (
-          <UpcomingTimeline
-            upcoming={upcoming_ideas}
-            tag={primary_channel.tag}
-            version={primary_channel.version}
-            onRefreshUpcoming={refreshUpcoming}
-          />
-        )}
+        <UpcomingTimeline
+          upcoming={upcoming_ideas}
+          tag={primary_channel.tag}
+          version={primary_channel.version}
+          onRefreshUpcoming={refreshUpcoming}
+        />
+
 
 
       </motion.div>

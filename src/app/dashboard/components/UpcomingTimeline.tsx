@@ -46,11 +46,14 @@ export default function UpcomingTimeline({
   const router = useRouter();
   const [showCreateModal, setShowCreateModal] = useState(false);
 
+  // 🚀 Filter out unassigned ideas
+  const filteredUpcoming = upcoming.filter((u) => u.status !== "unassigned");
+
   return (
     <div className="bg-[#16151E] border border-[#2E2D39] rounded-2xl p-5 shadow-lg w-full overflow-hidden">
       <div className="max-h-80 overflow-y-auto overflow-x-hidden pr-2 custom-scroll">
 
-        {/* CREATE BUTTON */}
+        {/* CREATE BUTTON (always visible) */}
         <div className="mb-4 flex justify-end">
           <PurpleActionButton
             label="Append Own Idea"
@@ -59,16 +62,27 @@ export default function UpcomingTimeline({
           />
         </div>
 
-        {upcoming.map((u) => {
+        {/* EMPTY STATE WHEN NO UPCOMING IDEAS */}
+        {filteredUpcoming.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-10 text-neutral-500 text-sm">
+            <p>Nothing scheduled yet.</p>
+            <p className="opacity-70 mt-2">
+              Change an idea’s status in the calendar or add your own to start building your timeline.
+            </p>
+          </div>
+        )}
+
+        {/* RENDER ONLY SCHEDULED IDEAS */}
+        {filteredUpcoming.map((u) => {
           const label = STATUS_LABELS[u.status] || u.status;
           const style = STATUS_STYLES[u.status] || STATUS_STYLES["unassigned"];
           const isManual = u.is_manual === true;
 
           const date = u.scheduled_for
             ? new Date(u.scheduled_for).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-              })
+              month: "short",
+              day: "numeric",
+            })
             : "Not scheduled";
 
           return (
@@ -79,14 +93,16 @@ export default function UpcomingTimeline({
                 translateX: isManual ? 0 : 4,
               }}
               transition={{ duration: 0.15 }}
-              className={`flex items-center justify-between bg-[#0F0E17] border border-[#2E2D39] rounded-xl px-4 py-4 mb-3 ${
-                isManual
+              className={`flex items-center justify-between bg-[#0F0E17] border border-[#2E2D39] rounded-xl px-4 py-4 mb-3 ${isManual
                   ? "cursor-default opacity-95"
                   : "cursor-pointer hover:border-[#6C63FF]/40 hover:shadow-[0_0_10px_#6C63FF33]"
-              }`}
+                }`}
               onClick={() => {
                 if (isManual) return;
-                router.push(`/idea/${u.uuid}?tag=${tag}&version=${version}`);
+                window.open(
+                  `/idea/${u.uuid}?tag=${tag}&version=${version}`,
+                  "_blank"
+                );
               }}
             >
               <div className="flex flex-col overflow-hidden pr-4">
@@ -99,10 +115,7 @@ export default function UpcomingTimeline({
                 </p>
               </div>
 
-              {/* ⭐ Badge Group */}
               <div className="flex items-center gap-2 shrink-0">
-
-                {/* OWN BADGE */}
                 {isManual && (
                   <span
                     className={`text-[11px] font-semibold uppercase tracking-wide px-3 py-1 rounded-full ${OWN_STYLE}`}
@@ -111,7 +124,6 @@ export default function UpcomingTimeline({
                   </span>
                 )}
 
-                {/* STATUS BADGE */}
                 <span
                   className={`text-[11px] font-semibold uppercase tracking-wide px-3 py-1 rounded-full ${style}`}
                 >
@@ -123,7 +135,6 @@ export default function UpcomingTimeline({
         })}
       </div>
 
-      {/* CREATE IDEA MODAL */}
       <CreateIdeaModal
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
@@ -135,7 +146,7 @@ export default function UpcomingTimeline({
         version={version}
       />
 
-      {/* Custom Scrollbar */}
+      {/* SCROLLBAR */}
       <style jsx>{`
         .custom-scroll::-webkit-scrollbar {
           width: 6px;

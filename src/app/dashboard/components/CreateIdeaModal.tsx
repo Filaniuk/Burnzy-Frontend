@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GradientActionButton } from "@/components/GradientActionButton";
 import { PurpleActionButton } from "@/components/PurpleActionButton";
@@ -30,10 +30,47 @@ export default function CreateIdeaModal({
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState("unassigned");
   const [scheduledFor, setScheduledFor] = useState("");
+
+  const [titleError, setTitleError] = useState<string | null>(null);
+  const [dateError, setDateError] = useState<string | null>(null);
+
   const [loading, setLoading] = useState(false);
+  const dateRef = useRef<HTMLInputElement | null>(null);
+
+  // Validate fields
+  const validate = () => {
+    let valid = true;
+
+    // Title required
+    if (!title.trim()) {
+      setTitleError("Title is required.");
+      valid = false;
+    } else {
+      setTitleError(null);
+    }
+
+    // Date optional, but cannot be in the past
+    if (scheduledFor) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const selected = new Date(scheduledFor);
+
+      if (selected < today) {
+        setDateError("Date cannot be in the past.");
+        valid = false;
+      } else {
+        setDateError(null);
+      }
+    } else {
+      setDateError(null);
+    }
+
+    return valid;
+  };
 
   const submit = async () => {
-    if (!title.trim()) return alert("Title is required!");
+    if (!validate()) return;
 
     setLoading(true);
 
@@ -46,19 +83,20 @@ export default function CreateIdeaModal({
           scheduled_for: scheduledFor || null,
           channel_tag: tag,
           version,
-        })
+        }),
       });
-
 
       onCreated();
       onClose();
     } catch (err) {
       console.error(err);
-      alert("Failed to create idea");
+      // You may add a toast later
     } finally {
       setLoading(false);
     }
   };
+
+  const isFormInvalid = !!titleError || !!dateError || !title.trim();
 
   return (
     <AnimatePresence>
@@ -86,11 +124,19 @@ export default function CreateIdeaModal({
                   Title *
                 </label>
                 <input
-                  className="w-full bg-[#14131C] border border-[#2E2D39] rounded-lg px-3 py-2 text-white outline-none focus:border-[#6C63FF]"
+                  className={`w-full bg-[#14131C] border rounded-lg px-3 py-2 text-white outline-none focus:border-[#6C63FF] ${
+                    titleError ? "border-red-500" : "border-[#2E2D39]"
+                  }`}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
+                  onBlur={validate}
                   placeholder="Enter idea title"
                 />
+                {titleError && (
+                  <span className="text-red-400 text-xs mt-1 block">
+                    {titleError}
+                  </span>
+                )}
               </div>
 
               {/* Status */}
@@ -116,12 +162,46 @@ export default function CreateIdeaModal({
                 <label className="text-neutral-400 text-sm mb-1 block">
                   Schedule for (optional)
                 </label>
-                <input
-                  type="date"
-                  className="w-full bg-[#14131C] border border-[#2E2D39] rounded-lg px-3 py-2 text-white focus:border-[#6C63FF]"
-                  value={scheduledFor}
-                  onChange={(e) => setScheduledFor(e.target.value)}
-                />
+
+                <div className="relative">
+                  <input
+                    type="date"
+                    ref={(el) => (dateRef.current = el)}
+                    className={`w-full bg-[#14131C] border rounded-lg px-3 py-2 pr-10 text-white focus:border-[#6C63FF] ${
+                      dateError ? "border-red-500" : "border-[#2E2D39]"
+                    }`}
+                    value={scheduledFor}
+                    onChange={(e) => {
+                      setScheduledFor(e.target.value);
+                      validate();
+                    }}
+                  />
+
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-300 hover:text-white"
+                    onClick={() => dateRef.current?.showPicker?.()}
+                  >
+                    📅
+                  </button>
+                </div>
+
+                {dateError && (
+                  <span className="text-red-400 text-xs mt-1 block">
+                    {dateError}
+                  </span>
+                )}
+
+                {/* Hide native date icon */}
+                <style jsx>{`
+                  input[type="date"]::-webkit-calendar-picker-indicator {
+                    opacity: 0;
+                    display: none;
+                  }
+                  input[type="date"] {
+                    color-scheme: dark;
+                  }
+                `}</style>
               </div>
             </div>
 
@@ -132,7 +212,7 @@ export default function CreateIdeaModal({
                 label={loading ? "Saving..." : "Create Idea"}
                 size="md"
                 onClick={submit}
-                disabled={loading}
+                disabled={loading || isFormInvalid}
               />
             </div>
           </motion.div>

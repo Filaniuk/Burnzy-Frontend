@@ -47,7 +47,6 @@ export default function IdeaCard({
     }`;
     window.open(url, "_blank");
   };
-
   return (
     <div
       className={`
@@ -59,6 +58,7 @@ export default function IdeaCard({
       {/* Buttons in top-right */}
       <div className="absolute top-2 right-2 flex gap-1 z-20 pointer-events-auto">
         {/* Open idea button */}
+        {!idea.is_manual ?
         <button
           onPointerDown={(e) => e.stopPropagation()}
           onClick={openIdea}
@@ -66,6 +66,9 @@ export default function IdeaCard({
         >
           <ExternalLink size={14} />
         </button>
+        : <> </>
+        }
+        
 
         {/* Delete button */}
         <button
