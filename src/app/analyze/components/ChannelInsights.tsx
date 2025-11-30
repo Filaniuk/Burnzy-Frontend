@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useRef, useMemo } from "react";
 import { apiFetch } from "@/lib/api";
+import { extractApiError } from "@/lib/errors";   // ✅ ADD THIS
 import { motion, AnimatePresence } from "framer-motion";
 import { BarChart2, Zap, TrendingUp, Lightbulb } from "lucide-react";
-import { version } from "os";
 
 type Insight = {
   title: string;
@@ -27,40 +27,47 @@ type ChannelInsightsResponse = {
   };
 };
 
-export default function ChannelInsights({ tag, version }: { tag: string, version: number }) {
+export default function ChannelInsights({
+  tag,
+  version,
+}: {
+  tag: string;
+  version: number;
+}) {
   const [insights, setInsights] = useState<Insight[]>([]);
   const [scale, setScale] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ Persist fetched tags between renders
   const fetchedTags = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    if (fetchedTags.current.has(tag)) return; // Avoid duplicate fetch
+    if (fetchedTags.current.has(tag)) return;
     fetchedTags.current.add(tag);
 
-    const fetchInsights = async () => {
+    async function fetchInsights() {
       setLoading(true);
       setError(null);
+
       try {
-        const data = await apiFetch<ChannelInsightsResponse>(
+        const res = await apiFetch<ChannelInsightsResponse>(
           "/api/v1/channel_insights",
           {
             method: "POST",
-            body: JSON.stringify({ channel_tag: tag, version: version}),
+            body: JSON.stringify({ channel_tag: tag, version }),
           }
         );
 
-        const { recommendations = [], scale = null } = data.data;
-        setInsights(recommendations);
-        setScale(scale);
-      } catch (err: any) {
-        setError(err.message || "Failed to fetch channel insights.");
+        setInsights(res.data.recommendations || []);
+        setScale(res.data.scale ?? null);
+
+      } catch (err) {
+        console.error("Insights Error:", err);
+        setError(extractApiError(err));   // ✅ Now user-friendly
       } finally {
         setLoading(false);
       }
-    };
+    }
 
     fetchInsights();
   }, [tag, version]);
@@ -74,7 +81,8 @@ export default function ChannelInsights({ tag, version }: { tag: string, version
     return (
       <div className="text-center text-neutral-400 mt-6 animate-pulse">
         🧠 Generating channel insights...
-        <span><br/> It can take a few minutes.</span>
+        <br />
+        <span>It can take a few minutes.</span>
       </div>
     );
 
@@ -95,12 +103,10 @@ export default function ChannelInsights({ tag, version }: { tag: string, version
         transition={{ duration: 0.5, ease: "easeOut" }}
         className="mt-10 bg-gradient-to-b from-[#14131C]/90 to-[#0F0E17]/90 border border-[#2A2935] rounded-2xl p-6 sm:p-8 shadow-[0_0_25px_rgba(108,99,255,0.15)]"
       >
-        {/* Title */}
         <h2 className="text-2xl sm:text-3xl font-bold mb-6 bg-gradient-to-r from-[#00F5A0] to-[#6C63FF] bg-clip-text text-transparent text-center">
           Channel Insights
         </h2>
 
-        {/* Insights List */}
         <div className="space-y-5 sm:space-y-6">
           {insights.map((insight, i) => {
             const color =
@@ -142,7 +148,6 @@ export default function ChannelInsights({ tag, version }: { tag: string, version
                   </span>
                 </div>
 
-                {/* Impact Bar */}
                 <div className="w-full bg-[#1B1A24] h-2 rounded-full overflow-hidden mb-3">
                   <motion.div
                     initial={{ width: 0 }}
@@ -165,7 +170,6 @@ export default function ChannelInsights({ tag, version }: { tag: string, version
           })}
         </div>
 
-        {/* Channel Health Score */}
         {scale !== null && (
           <div className="mt-10 text-center">
             <div className="text-xs sm:text-sm uppercase tracking-wide text-neutral-400 mb-3">

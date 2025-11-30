@@ -2,11 +2,44 @@
 
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { PLANS } from "./pricing";
 import ConfirmModal from "./components/ConfirmModal";
 import { apiFetch } from "@/lib/api";
-import CollapsibleFeatures from "./components/CollapsibleFeature";
+import PricingHeader from "./components/PricingHeader";
+import PricingCard from "./components/PricingCard";
+import CancelSubscriptionNote from "./components/CancelSubscriptionNote";
+
+type FeedbackColor = "green" | "red" | "yellow";
+
+interface BillingInfoResponse {
+  plan_name: string;
+  expires_at: string | null;
+}
+
+interface SwitchPlanResponse {
+  status: string;
+  upgraded?: boolean;
+  target_plan?: string;
+  effective_at?: string | null;
+}
+
+interface CancelResponse {
+  status: string;
+}
+
+// Small helper to keep error messages consistent
+function normalizeError(err: any): string {
+  if (!err) return "Something went wrong.";
+  if (typeof err === "string") return err;
+  if (err.detail && typeof err.detail === "string") return err.detail;
+  if (err.message && typeof err.message === "string") return err.message;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return "Unexpected error occurred.";
+  }
+}
 
 export default function PricingPage() {
   const { user } = useAuth();
@@ -14,7 +47,9 @@ export default function PricingPage() {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showDowngradeModal, setShowDowngradeModal] = useState(false);
-  const [selectedDowngrade, setSelectedDowngrade] = useState<string | null>(null);
+  const [selectedDowngrade, setSelectedDowngrade] = useState<string | null>(
+    null
+  );
   const [canceling, setCanceling] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
@@ -27,8 +62,22 @@ export default function PricingPage() {
     show: boolean;
     title: string;
     description: string;
-    color?: "green" | "red" | "yellow";
+    color?: FeedbackColor;
   }>({ show: false, title: "", description: "", color: "green" });
+
+  // --------------------------------------------------
+  // Format date helper
+  // --------------------------------------------------
+  const formatDate = useCallback((dateStr: string | null | undefined) => {
+    if (!dateStr) return "—";
+    const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) return "—";
+    return date.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  }, []);
 
   // --------------------------------------------------
   // Fetch user plan
@@ -40,125 +89,129 @@ export default function PricingPage() {
 
     const fetchPlan = async () => {
       try {
-        const data = await apiFetch<{ plan_name: string; expires_at: string | null }>(
+        const data = await apiFetch<BillingInfoResponse>(
           "/api/v1/stripe/dashboard"
         );
+        if (!data?.plan_name) {
+          return;
+        }
         setCurrentPlan(data.plan_name.toLowerCase());
         setExpiresAt(data.expires_at);
       } catch (err) {
         console.warn("Failed to fetch billing info", err);
+        setFeedback({
+          show: true,
+          title: "Billing Info Unavailable",
+          description:
+            normalizeError(err) ||
+            "We couldn't load your current plan details. You can still change plans below.",
+          color: "yellow",
+        });
       }
     };
-    fetchPlan();
-  }, [user]);
 
-  const formatDate = (dateStr: string | null | undefined) => {
-    if (!dateStr) return "—";
-    const date = new Date(dateStr);
-    return date.toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
+    fetchPlan();
+  }, [user, formatDate]);
 
   // --------------------------------------------------
   // Plan change logic
   // --------------------------------------------------
-  const handlePlanChange = async (planName: string) => {
-    if (!user) {
-      window.location.href = "/login";
-      return;
-    }
+  const handlePlanChange = useCallback(
+    async (planName: string) => {
+      if (!user) {
+        window.location.href = "/login";
+        return;
+      }
 
-    const planSlug = planName.toLowerCase();
+      const planSlug = planName.toLowerCase();
 
-    try {
-      setLoadingPlan(planName);
+      try {
+        setLoadingPlan(planName);
 
-      // Free → Paid (no active subscription)
-      if (!currentPlan || currentPlan === "free") {
-        const data = await apiFetch<{ checkout_url?: string }>(
-          `/api/v1/billing/create_checkout_session/${planSlug}`,
-          { method: "POST" }
-        );
-        if (data.checkout_url) {
-          window.location.href = data.checkout_url;
+        // Free → Paid (no active subscription)
+        if (!currentPlan || currentPlan === "free") {
+          const data = await apiFetch<{ checkout_url?: string }>(
+            `/api/v1/billing/create_checkout_session/${planSlug}`,
+            { method: "POST" }
+          );
+          if (data.checkout_url) {
+            window.location.href = data.checkout_url;
+          }
+          return;
         }
-        return;
-      }
 
-      // Already on this plan
-      if (currentPlan === planSlug) {
+        // Already on this plan
+        if (currentPlan === planSlug) {
+          setFeedback({
+            show: true,
+            title: "Already on this plan",
+            description: `You're already subscribed to the ${planName} plan.`,
+            color: "yellow",
+          });
+          return;
+        }
+
+        // Paid → Paid (upgrade or downgrade)
+        const data = await apiFetch<SwitchPlanResponse>(
+          `/api/v1/billing/switch_plan/${planSlug}`,
+          {
+            method: "POST",
+          }
+        );
+
+        if (data.status === "no_change") {
+          setFeedback({
+            show: true,
+            title: "No change",
+            description: "Your subscription is already on this plan.",
+            color: "yellow",
+          });
+          return;
+        }
+
+        if (data.status === "success") {
+          const upgraded = !!data.upgraded;
+
+          setFeedback({
+            show: true,
+            title: upgraded ? "Plan upgraded" : "Plan downgraded",
+            description: upgraded
+              ? `Your subscription has been upgraded to ${planName}.`
+              : `Your subscription has been downgraded to ${planName}. Billing is adjusted pro-rata according to our Cancellation & Refund Policy.`,
+            color: "green",
+          });
+
+          setCurrentPlan(planSlug);
+          if (data.effective_at) {
+            setExpiresAt(data.effective_at);
+          }
+          return;
+        }
+
+        // Fallback
         setFeedback({
           show: true,
-          title: "Already on this plan",
-          description: `You're already subscribed to the ${planName} plan.`,
-          color: "yellow",
-        });
-        return;
-      }
-
-      // Paid → Paid (upgrade or downgrade)
-      const data = await apiFetch<{
-        status: string;
-        upgraded?: boolean;
-        target_plan?: string;
-        effective_at?: string | null;
-      }>(`/api/v1/billing/switch_plan/${planSlug}`, {
-        method: "POST",
-      });
-
-      if (data.status === "no_change") {
-        setFeedback({
-          show: true,
-          title: "No change",
-          description: "Your subscription is already on this plan.",
-          color: "yellow",
-        });
-        return;
-      }
-
-      if (data.status === "success") {
-        const upgraded = !!data.upgraded;
-
-        setFeedback({
-          show: true,
-          title: upgraded ? "Plan upgraded" : "Plan downgraded",
-          description: upgraded
-            ? `Your subscription has been upgraded to ${planName}.`
-            : `Your subscription has been downgraded to ${planName}. Billing is adjusted pro-rata according to our Cancellation & Refund Policy.`,
+          title: "Plan update",
+          description: `Your plan update request was processed.`,
           color: "green",
         });
-
         setCurrentPlan(planSlug);
-        if (data.effective_at) {
-          setExpiresAt(data.effective_at);
-        }
-        return;
+      } catch (err: any) {
+        console.error(err);
+        setFeedback({
+          show: true,
+          title: "Error Updating Plan",
+          description:
+            normalizeError(err) ||
+            "Something went wrong while updating your plan.",
+          color: "red",
+        });
+      } finally {
+        setLoadingPlan(null);
       }
-
-      // Fallback
-      setFeedback({
-        show: true,
-        title: "Plan update",
-        description: `Your plan update request was processed.`,
-        color: "green",
-      });
-      setCurrentPlan(planSlug);
-    } catch (err: any) {
-      console.error(err);
-      setFeedback({
-        show: true,
-        title: "Error Updating Plan",
-        description:
-          err?.message || "Something went wrong while updating your plan.",
-        color: "red",
-      });
-    } finally {
-      setLoadingPlan(null);
-    }
-  };
+    },
+    [currentPlan, user]
+  );
 
   const confirmDowngrade = (planName: string) => {
     setSelectedDowngrade(planName);
@@ -177,7 +230,6 @@ export default function PricingPage() {
     await handlePlanChange(selectedUpgrade);
   };
 
-
   // --------------------------------------------------
   // Cancel subscription (at period end)
   // --------------------------------------------------
@@ -185,7 +237,7 @@ export default function PricingPage() {
     if (!user) return;
     try {
       setCanceling(true);
-      const data = await apiFetch<{ status: string }>(
+      const data = await apiFetch<CancelResponse>(
         "/api/v1/billing/cancel_subscription",
         { method: "POST" }
       );
@@ -218,7 +270,8 @@ export default function PricingPage() {
         show: true,
         title: "Cancel Failed",
         description:
-          err?.message || "Failed to cancel subscription. Try again later.",
+          normalizeError(err) ||
+          "Failed to cancel subscription. Try again later.",
         color: "red",
       });
     } finally {
@@ -227,138 +280,66 @@ export default function PricingPage() {
   };
 
   // --------------------------------------------------
+  // Handle card click (upgrade / downgrade / free behavior)
+  // --------------------------------------------------
+  const handlePlanCardClick = (planName: string) => {
+    const currentObj = PLANS.find(
+      (p) => p.name.toLowerCase() === currentPlan
+    );
+    const currentPrice = currentObj?.price ?? 0;
+    const target = PLANS.find((p) => p.name === planName);
+    const targetPrice = target?.price ?? 0;
+
+    // Free or no active plan → direct change
+    if (!currentPlan || currentPlan === "free") {
+      handlePlanChange(planName);
+      return;
+    }
+
+    const isUpgrade = targetPrice > currentPrice;
+    const isDowngrade = targetPrice < currentPrice;
+
+    if (isDowngrade) {
+      setSelectedDowngrade(planName);
+      setShowDowngradeModal(true);
+      return;
+    }
+
+    if (isUpgrade) {
+      setSelectedUpgrade(planName);
+      setShowUpgradeModal(true);
+      return;
+    }
+
+    // same tier / unknown → just try changing
+    handlePlanChange(planName);
+  };
+
+  // --------------------------------------------------
   // UI
   // --------------------------------------------------
   return (
     <div className="min-h-screen bg-[#0F0E17] text-white flex flex-col items-center py-16 px-4 sm:px-6 lg:px-10">
       {/* Header */}
-      <motion.header
-        initial={{ opacity: 0, y: -15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="text-center mb-12 max-w-2xl"
-      >
-        <h1 className="text-4xl sm:text-5xl font-extrabold bg-gradient-to-r from-[#6C63FF] to-[#00F5A0] bg-clip-text text-transparent">
-          Pricing Plans
-        </h1>
-        <p className="text-neutral-400 mt-3 text-sm sm:text-base">
-          Choose the plan that fits your content creation needs.
-        </p>
-        {currentPlan && (
-          <p className="mt-2 text-sm text-neutral-400">
-            Current plan:{" "}
-            <span className="text-[#00F5A0] font-medium capitalize">
-              {currentPlan}
-            </span>
-            {expiresAt && (
-              <>
-                {" "}
-                · Renewal / End:{" "}
-                <span className="text-[#00F5A0] font-medium">
-                  {formatDate(expiresAt)}
-                </span>
-              </>
-            )}
-          </p>
-        )}
-      </motion.header>
+      <PricingHeader
+        currentPlan={currentPlan}
+        expiresAt={expiresAt}
+        formatDate={formatDate}
+      />
 
       {/* Pricing Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl w-full">
-        {PLANS.map((plan, index) => {
-          const isCurrent = currentPlan === plan.name.toLowerCase();
-          const currentObj = PLANS.find(
-            (p) => p.name.toLowerCase() === currentPlan
-          );
-          const currentPrice = currentObj?.price ?? 0;
-          const isUpgrade = plan.price > currentPrice;
-          const isDowngrade = plan.price < currentPrice;
-
-          const handleClick = () => {
-            if (!currentPlan || currentPlan === "free") {
-              handlePlanChange(plan.name);
-              return;
-            }
-            if (isDowngrade) {
-              confirmDowngrade(plan.name);
-              return;
-            }
-
-            // NEW — handle upgrades via modal
-            if (isUpgrade) {
-              setSelectedUpgrade(plan.name);
-              setShowUpgradeModal(true);
-              return;
-            }
-
-            handlePlanChange(plan.name);
-
-          };
-
-          // Button text + style
-          let label = "";
-          let style = "";
-
-          if (isCurrent) {
-            label = "Current Plan";
-            style = "bg-white/10 text-neutral-400 cursor-not-allowed";
-          } else if (loadingPlan === plan.name) {
-            label = "Processing...";
-            style = "bg-white/20 text-white opacity-60";
-          } else if (!currentPlan || currentPlan === "free" || isUpgrade) {
-            label = `Upgrade to ${plan.name}`;
-            style = "bg-[#00F5A0] text-black hover:bg-[#00d98b]";
-          } else if (isDowngrade) {
-            label = `Downgrade to ${plan.name}`;
-            style = "bg-red-600 text-white hover:bg-red-700";
-          }
-
-          return (
-            <motion.div
-              key={plan.name}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, delay: index * 0.1 }}
-              className={`rounded-2xl p-8 flex flex-col justify-between shadow-lg border 
-                ${plan.highlight
-                  ? "border-[#00F5A0] bg-[#16151E]"
-                  : "border-[#1F1E29] bg-[#12111A]"
-                } hover:scale-[1.02] transition-transform`}
-            >
-              <div>
-                <h2 className="text-2xl font-bold mb-2">{plan.name}</h2>
-                <p className="text-neutral-400 mb-6 text-sm sm:text-base">
-                  {plan.description}
-                </p>
-                <div className="flex items-baseline mb-6">
-                  <span className="text-4xl font-bold">${plan.price}</span>
-                  <span className="text-neutral-400 ml-2">/month</span>
-                </div>
-
-                <CollapsibleFeatures features={plan.features} />
-              </div>
-
-              {plan.name === "Free" ? (
-                <button
-                  onClick={() =>
-                    (window.location.href = user ? "/dashboard" : "/login")
-                  }
-                  className="w-full py-3 rounded-xl font-semibold transition bg-white/10 hover:bg-white/20 text-white"
-                >
-                  {user ? "Go to Dashboard" : "Start for Free"}
-                </button>
-              ) : (
-                <button
-                  onClick={handleClick}
-                  disabled={isCurrent || loadingPlan === plan.name}
-                  className={`w-full py-3 rounded-xl font-semibold transition-colors ${style}`}
-                >
-                  {label}
-                </button>
-              )}
-            </motion.div>
-          );
-        })}
+        {PLANS.map((plan, index) => (
+          <PricingCard
+            key={plan.name}
+            plan={plan}
+            index={index}
+            currentPlan={currentPlan}
+            loadingPlan={loadingPlan}
+            userPresent={!!user}
+            onSelectPlan={handlePlanCardClick}
+          />
+        ))}
       </div>
 
       {/* Footer */}
@@ -373,17 +354,10 @@ export default function PricingPage() {
       </footer>
 
       {/* Cancel subscription link */}
-      {user && currentPlan && currentPlan !== "free" && (
-        <p className="text-neutral-500 text-sm mt-4 text-center">
-          To cancel your subscription,{" "}
-          <span
-            onClick={() => setShowCancelModal(true)}
-            className="text-[#00F5A0] hover:underline cursor-pointer"
-          >
-            click here
-          </span>
-        </p>
-      )}
+      <CancelSubscriptionNote
+        shouldShow={!!user && !!currentPlan && currentPlan !== "free"}
+        onClick={() => setShowCancelModal(true)}
+      />
 
       {/* Cancel Modal */}
       <ConfirmModal
@@ -397,6 +371,7 @@ export default function PricingPage() {
         confirmColor="red"
       />
 
+      {/* Upgrade Modal */}
       <ConfirmModal
         show={showUpgradeModal}
         onCancel={() => setShowUpgradeModal(false)}
@@ -405,9 +380,8 @@ export default function PricingPage() {
         title="Upgrade your plan?"
         description="Upgrading now will give you immediate access to the selected plan. A prorated charge for the upgrade will be applied immediately."
         loading={loadingPlan !== null}
-        confirmColor="#00F5A0"
+        confirmColor="green"
       />
-
 
       {/* Downgrade Modal */}
       <ConfirmModal
@@ -420,7 +394,6 @@ export default function PricingPage() {
         loading={loadingPlan !== null}
         confirmColor="red"
       />
-
 
       {/* Feedback Modal */}
       <ConfirmModal

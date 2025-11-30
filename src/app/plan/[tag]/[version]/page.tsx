@@ -23,70 +23,73 @@ export default function ContentPlanPage() {
 
   const [plan, setPlan] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+
   const [feedback, setFeedback] = useState({
     show: false,
     title: "",
     description: "",
-    color: "red" as "green" | "red" | "yellow",
+    color: "red" as "red" | "yellow" | "green",
   });
+
   const [confirmImport, setConfirmImport] = useState(false);
   const fetchRef = useRef<string | null>(null);
 
-  // ---------------------------------------------
-  // FETCH PLAN (no caching)
-  // ---------------------------------------------
-useEffect(() => {
-  const key = `${tag}-${version}-${uploadsPerWeek}-${weeks}`;
+  // ----------------------------------------------------
+  // FETCH CONTENT PLAN
+  // ----------------------------------------------------
+  useEffect(() => {
+    const key = `${tag}-${version}-${uploadsPerWeek}-${weeks}`;
 
-  // Prevent double trigger (React Strict Mode)
-  if (fetchRef.current === key) return;
-  fetchRef.current = key;
+    if (fetchRef.current === key) return; // strict mode double-call guard
+    fetchRef.current = key;
 
-  async function fetchPlan() {
-    setLoading(true);
+    async function load() {
+      setLoading(true);
 
-    try {
-      const res = await apiFetch<any>("/api/v1/content_plan", {
-        method: "POST",
-        body: JSON.stringify({
-          channel_tag: tag,
-          uploads_per_week: uploadsPerWeek,
-          weeks,
-          version,
-        }),
-      });
+      try {
+        const res = await apiFetch("/api/v1/content_plan", {
+          method: "POST",
+          body: JSON.stringify({
+            channel_tag: tag,
+            uploads_per_week: uploadsPerWeek,
+            weeks,
+            version,
+          }),
+        });
 
-      if (!res?.data || !res.data.weekly_plan) {
-        throw new Error("Invalid or empty plan data received from server.");
+        if (!res?.data || !res.data.weekly_plan) {
+          throw new Error("Invalid or missing plan data.");
+        }
+
+        setPlan(res.data);
+      } catch (err: any) {
+        console.error("[ContentPlan] Failed:", err);
+
+        setFeedback({
+          show: true,
+          title: "Failed to Build Content Plan",
+          description:
+            err?.message ||
+            "Your content plan could not be generated. Please try again.",
+          color: "red",
+        });
+      } finally {
+        setLoading(false);
       }
-
-      setPlan(res.data);
-    } catch (err: any) {
-      console.error(err);
-      setFeedback({
-        show: true,
-        title: "Failed to Load Plan",
-        description: err.message || "We couldn’t load your content plan.",
-        color: "red",
-      });
-    } finally {
-      setLoading(false);
     }
-  }
 
-  fetchPlan();
-}, [tag, version, uploadsPerWeek, weeks]);
+    load();
+  }, [tag, version, uploadsPerWeek, weeks]);
 
-
-  // ---------------------------------------------
-  // IMPORT PLAN → CALENDAR
-  // ---------------------------------------------
+  // ----------------------------------------------------
+  // IMPORT PLAN INTO CALENDAR
+  // ----------------------------------------------------
   async function handleImportPlan() {
     if (!plan?.plan_uuid) {
       setFeedback({
         show: true,
         title: "Missing Plan ID",
-        description: "This plan does not have a valid identifier.",
+        description: "This plan has no valid identifier.",
         color: "red",
       });
       return;
@@ -104,35 +107,35 @@ useEffect(() => {
       setFeedback({
         show: true,
         title: "Plan Imported",
-        description:
-          "Your content plan has been successfully added to your calendar.",
+        description: "Your content plan has been added to your calendar.",
         color: "green",
       });
     } catch (err: any) {
       setFeedback({
         show: true,
         title: "Import Failed",
-        description: err.message || "Failed to import plan.",
+        description: err?.message || "We couldn’t import the content plan.",
         color: "red",
       });
     }
   }
 
-  // ---------------------------------------------
+  // ----------------------------------------------------
   // LOADING
-  // ---------------------------------------------
-  if (loading)
+  // ----------------------------------------------------
+  if (loading) {
     return (
       <LoadingAnalysis
         message="Building your content plan..."
-        secondary_message="This is a big request — it may take a moment."
+        secondary_message="This might take a few moments."
       />
     );
+  }
 
-  // ---------------------------------------------
+  // ----------------------------------------------------
   // NO PLAN
-  // ---------------------------------------------
-  if (!plan)
+  // ----------------------------------------------------
+  if (!plan) {
     return (
       <main className="min-h-screen bg-[#0F0E17] text-white flex flex-col items-center justify-center px-6 text-center">
         <motion.h2
@@ -144,8 +147,7 @@ useEffect(() => {
           Something went wrong.
         </motion.h2>
         <p className="text-neutral-400 mb-6 max-w-md">
-          We couldn’t find a content plan for this channel. Try regenerating
-          it.
+          We couldn’t generate a plan. Try again later.
         </p>
 
         <ConfirmModal
@@ -159,18 +161,15 @@ useEffect(() => {
         />
       </main>
     );
+  }
 
-  // ---------------------------------------------
-  // RENDER CONTENT PLAN
-  // ---------------------------------------------
   return (
     <main className="min-h-screen bg-[#0F0E17] text-white py-14 px-4 sm:px-6">
       <div className="max-w-6xl mx-auto space-y-12">
-
         {/* HEADER */}
         <ContentPlanHeader plan={plan} />
 
-        {/* Import Button */}
+        {/* IMPORT BUTTON */}
         <div className="flex justify-center">
           <PurpleActionButton
             label="📅 Import Plan To Calendar"
@@ -186,11 +185,11 @@ useEffect(() => {
           ))}
         </section>
 
-        {/* Back */}
+        {/* BACK BTN */}
         <div className="text-center mt-14 space-y-6">
           <button
             onClick={() => history.back()}
-            className="px-5 py-2.5 rounded-xl bg-[#1B1A24] hover:bg-[#2E2D39] 
+            className="px-5 py-2.5 rounded-xl bg-[#1B1A24] hover:bg-[#2E2D39]
                        text-neutral-300 border border-[#2E2D39] transition-all"
           >
             ← Back to Portfolio
@@ -198,7 +197,7 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* CONFIRM IMPORT */}
+      {/* CONFIRM IMPORT MODAL */}
       <ConfirmModal
         show={confirmImport}
         onCancel={() => setConfirmImport(false)}
@@ -208,11 +207,11 @@ useEffect(() => {
         }}
         confirmText="Import"
         title="Add Plan to Calendar?"
-        description="This will add all videos from this plan to your calendar. Existing ideas keep their status; new ideas become 'To Film'."
+        description="This will add all scheduled videos to your calendar. Existing ones keep their status."
         confirmColor="green"
       />
 
-      {/* FEEDBACK */}
+      {/* GENERAL FEEDBACK MODAL */}
       <ConfirmModal
         show={feedback.show}
         onCancel={() => setFeedback({ ...feedback, show: false })}

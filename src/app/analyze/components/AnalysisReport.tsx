@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
+import { extractApiError } from "@/lib/errors";
 
 import ConfirmModal from "@/app/pricing/components/ConfirmModal";
 import ActionButtons from "./ActionButton";
@@ -16,6 +17,8 @@ import KeywordSection from "./KeywordSection";
 import ReportHeader from "./ReportHeader";
 import ToggleSwitch from "@/components/ToggleSwitch";
 
+// -----------------------------------------------
+// Types
 // -----------------------------------------------
 type AnalysisData = {
   channel_niche: string;
@@ -36,6 +39,7 @@ interface Props {
   type: "channel" | "topic";
 }
 
+// -----------------------------------------------
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.45 } },
@@ -46,33 +50,29 @@ export default function AnalysisReport({ data, type }: Props) {
   const router = useRouter();
   const { user } = useAuth();
 
-  const [activeSection, setActiveSection] = useState<"insights" | "ideas" | null>(
-    null
-  );
+  const [activeSection, setActiveSection] =
+    useState<"insights" | "ideas" | null>(null);
   const [reanalyzing, setReanalyzing] = useState(false);
-
   const [isPrimary, setIsPrimary] = useState(false);
 
-  // Error modal
+  // Error modal state
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   // -----------------------------------------------
-  // Detect if this analysis is primary
+  // Detect if this analysis is user's primary
   // -----------------------------------------------
   useEffect(() => {
     if (!data?.meta?.id || !user) return;
-
-    if (user.primary_channel_id === data.meta.id) {
-      setIsPrimary(true);
-    }
+    if (user.primary_channel_id === data.meta.id) setIsPrimary(true);
   }, [user, data]);
 
   // -----------------------------------------------
-  // Update primary channel/topic
+  // Toggle primary channel/topic
   // -----------------------------------------------
   async function togglePrimary() {
-    if (!data?.meta?.id) return;
+    const id = data?.meta?.id;
+    if (!id) return;
 
     const newValue = !isPrimary;
     setIsPrimary(newValue);
@@ -80,12 +80,12 @@ export default function AnalysisReport({ data, type }: Props) {
     try {
       await apiFetch("/api/v1/set_primary_channel", {
         method: "POST",
-        body: JSON.stringify({ channel_id: data.meta.id }),
+        body: JSON.stringify({ channel_id: id }),
       });
     } catch (err) {
       console.error(err);
-      setIsPrimary(!newValue);
-      setErrorMessage("Failed to update primary channel.");
+      setIsPrimary(!newValue); // revert state
+      setErrorMessage(extractApiError(err));
       setShowErrorModal(true);
     }
   }
@@ -95,9 +95,14 @@ export default function AnalysisReport({ data, type }: Props) {
   // -----------------------------------------------
   const handleReanalyze = async () => {
     const tag = data?.meta?.tag;
-    if (!tag) return;
+    if (!tag) {
+      setErrorMessage("Invalid analysis data: missing tag.");
+      setShowErrorModal(true);
+      return;
+    }
 
     setReanalyzing(true);
+
     try {
       const endpoint =
         type === "channel"
@@ -107,27 +112,45 @@ export default function AnalysisReport({ data, type }: Props) {
       const body =
         type === "channel"
           ? { channel_url: tag }
-          : { topic: tag.startsWith("[new_topic_req]:") ? tag.slice(17) : tag };
+          : {
+              topic: tag.startsWith("[new_topic_req]:")
+                ? tag.slice(17)
+                : tag,
+            };
 
       const res = await apiFetch<any>(endpoint, {
         method: "POST",
         body: JSON.stringify(body),
       });
 
+      if (!res?.meta?.tag || !res?.meta?.version) {
+        throw new Error("Invalid response from analysis API.");
+      }
+
       router.push(
         `/analyze?type=${type}&tag=${encodeURIComponent(
           res.meta.tag
         )}&version=${res.meta.version}`
       );
-    } catch (err: any) {
-      setErrorMessage(
-        err?.message || "Something went wrong during reanalysis."
-      );
+    } catch (err) {
+      console.error(err);
+      setErrorMessage(extractApiError(err));
       setShowErrorModal(true);
     } finally {
       setReanalyzing(false);
     }
   };
+
+  // -----------------------------------------------
+  // If no data loaded
+  // -----------------------------------------------
+  if (!data) {
+    return (
+      <div className="text-red-500 text-center mt-20">
+        Failed to load analysis.
+      </div>
+    );
+  }
 
   // -----------------------------------------------
   return (
@@ -146,20 +169,21 @@ export default function AnalysisReport({ data, type }: Props) {
           onReanalyze={handleReanalyze}
         />
 
-        {/* ⭐ PRIMARY CHANNEL TOGGLE */}
+        {/* Primary Toggle */}
         <div className="flex items-center justify-center mb-8 gap-4 select-none">
           <ToggleSwitch
             enabled={isPrimary}
             onToggle={togglePrimary}
-            label={`Make this my primary ${type === "channel" ? "channel" : "topic"}`}
+            label={`Make this my primary ${
+              type === "channel" ? "channel" : "topic"
+            }`}
           />
         </div>
 
-
-        {/* Sections */}
+        {/* Content sections */}
         <InfoGrid data={data} />
-        <KeywordSection keywords={data.top_keywords} />
-        <AudienceProfileSection profile={data.audience_profile} />
+        <KeywordSection keywords={data.top_keywords || []} />
+        <AudienceProfileSection profile={data.audience_profile || ""} />
 
         <ActionButtons
           type={type}
@@ -177,12 +201,12 @@ export default function AnalysisReport({ data, type }: Props) {
           variants={fadeUp}
           className="mt-10 text-center text-neutral-500 text-sm"
         >
-          Generated by{" "}
-          <span className="text-[#00F5A0]">AI Channel Strategist</span>
+          Generated with{" "}
+          <span className="text-[#00F5A0]">AI Channel Engine</span>
         </motion.div>
       </motion.div>
 
-      {/* Error modal */}
+      {/* Error Modal */}
       <ConfirmModal
         show={showErrorModal}
         title="Action Failed"

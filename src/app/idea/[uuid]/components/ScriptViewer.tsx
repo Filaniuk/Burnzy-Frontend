@@ -1,32 +1,7 @@
 "use client";
 
+import { ScriptData } from "@/types/idea";
 import { useState } from "react";
-
-type ScriptData = {
-  title: string;
-  three_alternate_hooks: string[];
-  timestamped_script: {
-    time: string;
-    scene: string;
-    voiceover: string;
-    visuals: string;
-    b_roll: string[];
-  }[];
-  shot_list: {
-    shot_type: string;
-    description: string;
-    estimated_duration: string;
-  }[];
-  thumbnail_options?: {
-    a: string;
-    b: string;
-  };
-  shorts_version: {
-    hook: string;
-    script: string[];
-    cta: string;
-  };
-};
 
 type Props = {
   script: ScriptData | null;

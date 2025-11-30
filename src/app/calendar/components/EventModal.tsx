@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { apiFetch } from "@/lib/api";
 import { IdeaStatus } from "@/types/calendar";
+import ConfirmModal from "@/app/pricing/components/ConfirmModal";
 
 interface EventModalProps {
   close: () => void;
@@ -26,15 +27,15 @@ const statusLabelMap: Record<IdeaStatus, string> = {
   archived: "Archived",
 };
 
-export default function EventModal({
-  close,
-  ideaId,
-  reload,
-}: EventModalProps) {
+export default function EventModal({ close, ideaId, reload }: EventModalProps) {
   const [idea, setIdea] = useState<IdeaResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [newStatus, setNewStatus] = useState<IdeaStatus>("to_publish");
   const [saving, setSaving] = useState(false);
+
+  // NEW: Error modal state
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showError, setShowError] = useState(false);
 
   useEffect(() => {
     if (!ideaId) return;
@@ -46,25 +47,55 @@ export default function EventModal({
         setIdea(data);
         setNewStatus(data.status);
       })
+      .catch((err: any) => {
+        setErrorMsg(err?.message || "Failed to load idea.");
+        setShowError(true);
+      })
       .finally(() => setLoading(false));
   }, [ideaId]);
+
+  // Show error modal *instead of crashing*
+  if (showError) {
+    return (
+      <ConfirmModal
+        show={true}
+        title="Error Loading Idea"
+        description={errorMsg || "Something went wrong."}
+        confirmText="Close"
+        confirmColor="red"
+        onConfirm={() => {
+          setShowError(false);
+          close();
+        }}
+        onCancel={() => {
+          setShowError(false);
+          close();
+        }}
+      />
+    );
+  }
 
   if (!ideaId || loading || !idea) return null;
 
   async function saveStatus() {
-    // UNASSIGNED via unschedule
-
     setSaving(true);
-    await apiFetch("/api/v1/ideas/update_status", {
-      method: "POST",
-      body: JSON.stringify({
-        idea_id: ideaId,
-        status: newStatus,
-      }),
-    });
-    await reload();
-    setSaving(false);
-    close();
+    try {
+      await apiFetch("/api/v1/ideas/update_status", {
+        method: "POST",
+        body: JSON.stringify({
+          idea_id: ideaId,
+          status: newStatus,
+        }),
+      });
+
+      await reload();
+      close();
+    } catch (err: any) {
+      setErrorMsg(err?.message || "Failed to update status.");
+      setShowError(true);
+    } finally {
+      setSaving(false);
+    }
   }
 
   const statusDotColor =
@@ -85,11 +116,9 @@ export default function EventModal({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="animate-pop-in w-96 rounded-xl border border-[#2E2D39] bg-[#1B1A24] p-6 shadow-2xl shadow-black/60">
-        <h2 className="mb-2 text-xl font-semibold">
-          📅 Scheduled Idea
-        </h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+      <div className="animate-pop-in w-full max-w-sm rounded-xl border border-[#2E2D39] bg-[#1B1A24] p-6 shadow-2xl shadow-black/60">
+        <h2 className="mb-2 text-xl font-semibold">📅 Scheduled Idea</h2>
 
         <p className="mb-1 text-sm text-neutral-400">Idea</p>
         <p className="mb-3 font-medium text-white">{idea.title}</p>
@@ -108,6 +137,7 @@ export default function EventModal({
           <span>{statusLabelMap[idea.status]}</span>
         </div>
 
+        {/* STATUS SELECT */}
         <div className="mb-4">
           <label className="mb-1 block text-xs text-neutral-400">
             Change status

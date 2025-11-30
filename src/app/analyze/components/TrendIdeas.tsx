@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { apiFetch } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { apiFetch, APIError } from "@/lib/api";
+import { extractApiError } from "@/lib/errors";
 import { GradientActionButton } from "@/components/GradientActionButton";
 
 type Idea = {
@@ -23,11 +24,10 @@ type TrendIdeasResponse = {
     niche: string;
     video_ideas: Idea[];
   };
-  meta: {
-    version: number;
-  };
+  meta: { version: number };
 };
 
+// avoid duplicate fetches on same (tag, version)
 const fetchedTags = new Set<string>();
 
 export default function TrendIdeas({
@@ -63,17 +63,20 @@ export default function TrendIdeas({
     if (fetchedTags.has(key)) return;
     fetchedTags.add(key);
 
+    setLoading(true);
+    setError(null);
+
     try {
-      setLoading(true);
-      setError(null);
       const data = await apiFetch<TrendIdeasResponse>("/api/v1/trend_ideas", {
         method: "POST",
         body: JSON.stringify({ tag, version }),
       });
-      setIdeas(data.data.video_ideas);
+
       setResponse(data);
-    } catch (err: any) {
-      setError(err.message || "Failed to fetch ideas.");
+      setIdeas(data.data.video_ideas || []);
+    } catch (err) {
+      console.error("[TrendIdeas] Fetch error:", err);
+      setError(extractApiError(err));
     } finally {
       setLoading(false);
     }
@@ -84,20 +87,26 @@ export default function TrendIdeas({
   }, [fetchIdeas]);
 
   const nextIdea = () => {
+    if (!ideas.length) return;
     setDirection("right");
     setCurrentIndex((prev) => (prev + 1) % ideas.length);
   };
 
   const prevIdea = () => {
+    if (!ideas.length) return;
     setDirection("left");
     setCurrentIndex((prev) => (prev - 1 + ideas.length) % ideas.length);
   };
 
+  // -----------------------------
+  // UI States: Loading / Error / Empty
+  // -----------------------------
   if (loading)
     return (
       <div className="text-center text-neutral-400 mt-6 animate-pulse">
         🧠 Generating trend ideas...
-        <span><br/> It can take a few minutes.</span>
+        <br />
+        <span className="text-sm">It can take a few minutes.</span>
       </div>
     );
 
@@ -115,9 +124,12 @@ export default function TrendIdeas({
       </div>
     );
 
+  // -----------------------------
+  // Normal state
+  // -----------------------------
   const idea = ideas[currentIndex];
   const imageUrl = idea.mocked_thumbnail_url
-    ? `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"}/mocked-thumbnails/${idea.mocked_thumbnail_url}`
+    ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/mocked-thumbnails/${idea.mocked_thumbnail_url}`
     : null;
 
   return (
@@ -132,7 +144,7 @@ export default function TrendIdeas({
         transition={{ duration: 0.35, ease: "easeInOut" }}
         className="relative w-full max-w-3xl mx-auto bg-[#0F0E17] rounded-2xl border border-[#2E2D39] shadow-2xl px-5 sm:px-6 py-8 sm:py-10"
       >
-        {/* Desktop Navigation */}
+        {/* DESKTOP NAV */}
         <div className="hidden md:block">
           <button
             onClick={prevIdea}
@@ -141,6 +153,7 @@ export default function TrendIdeas({
           >
             <ChevronLeft size={24} />
           </button>
+
           <button
             onClick={nextIdea}
             aria-label="Next idea"
@@ -150,30 +163,29 @@ export default function TrendIdeas({
           </button>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* MOBILE NAV */}
         <div className="flex justify-between items-center mb-4 md:hidden">
           <button
             onClick={prevIdea}
-            aria-label="Previous idea"
-            className="bg-[#2E2D39] hover:bg-[#3B3A4A] text-white rounded-full p-2 shadow-md transition"
+            className="bg-[#2E2D39] hover:bg-[#3B3A4A] text-white rounded-full p-2 shadow-md"
           >
             <ChevronLeft size={20} />
           </button>
+
           <span className="text-sm text-neutral-400">
             {currentIndex + 1} / {ideas.length}
           </span>
+
           <button
             onClick={nextIdea}
-            aria-label="Next idea"
-            className="bg-[#2E2D39] hover:bg-[#3B3A4A] text-white rounded-full p-2 shadow-md transition"
+            className="bg-[#2E2D39] hover:bg-[#3B3A4A] text-white rounded-full p-2 shadow-md"
           >
             <ChevronRight size={20} />
           </button>
         </div>
 
-        {/* Main Card Content */}
+        {/* CONTENT */}
         <div className="flex flex-col items-center text-center">
-          {/* Thumbnail Section */}
           <div className="relative w-full max-w-2xl h-[220px] sm:h-[280px] rounded-xl overflow-hidden border border-[#3B3A4A] shadow-lg">
             {imageUrl ? (
               <div
@@ -199,17 +211,17 @@ export default function TrendIdeas({
             </div>
           </div>
 
-          {/* Text Section */}
           <div className="mt-5 text-left w-full max-w-2xl">
             <h3 className="text-lg sm:text-xl font-bold text-white mb-1 leading-snug">
               {idea.title}
             </h3>
+
             <p className="text-sm text-neutral-400 mb-3">
-              {response?.data.channel_name || "Unknown Channel"}
+              {response?.data.channel_name}
             </p>
 
             <div className="bg-[#14131C] border border-[#2E2D39] rounded-xl p-4 mb-5">
-              <h4 className="text-[#6C63FF] font-semibold mb-1 flex items-center gap-2">
+              <h4 className="text-[#6C63FF] font-semibold mb-1">
                 🤔 Why this idea works
               </h4>
               <p className="text-neutral-300 text-sm leading-relaxed">
@@ -219,21 +231,15 @@ export default function TrendIdeas({
 
             <div className="flex justify-center">
               <GradientActionButton
+                label="🔍 Explore Full Idea"
                 onClick={() =>
                   window.open(
                     `/idea/${idea.uuid}?tag=${response?.data.channel_tag}&version=${response?.meta?.version}`,
                     "_blank"
                   )
                 }
-                label="🔍 Explore Full Idea"
-                size="md"
               />
             </div>
-          </div>
-
-          {/* Mobile idea count */}
-          <div className="mt-4 text-sm text-neutral-500 md:hidden">
-            {currentIndex + 1} / {ideas.length}
           </div>
         </div>
       </motion.section>

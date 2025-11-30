@@ -3,7 +3,10 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { apiFetch } from "@/lib/api";
+
+import { apiFetch, APIError } from "@/lib/api";
+import { extractApiError } from "@/lib/errors";
+
 import AnalysisReport from "@/app/analyze/components/AnalysisReport";
 import LoadingAnalysis from "@/components/LoadingAnalysis";
 import ConfirmModal from "@/app/pricing/components/ConfirmModal";
@@ -18,6 +21,9 @@ type AnalysisResponse = {
 
 export default function AnalyzePage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const loadedRef = useRef(false);
+
   const queryTag = searchParams.get("tag");
   const queryType = searchParams.get("type");
   const queryVersion = searchParams.get("version");
@@ -25,31 +31,29 @@ export default function AnalyzePage() {
   const [mode, setMode] = useState<"channel" | "topic">("channel");
   const [input, setInput] = useState("");
   const [context, setContext] = useState("");
+
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-
   const [forceRefresh, setForceRefresh] = useState(true);
-  const [feedback, setFeedback] = useState<{
-    show: boolean;
-    title: string;
-    description: string;
-    color?: "green" | "red" | "yellow";
-  }>({ show: false, title: "", description: "", color: "red" });
 
-  const router = useRouter();
-  const loadedRef = useRef(false);
+  const [feedback, setFeedback] = useState({
+    show: false,
+    title: "",
+    description: "",
+    color: "red" as "red" | "green" | "yellow",
+  });
 
-  // --------------------------------------------------
-  // Load existing analysis from URL params
-  // --------------------------------------------------
+  // ---------------------------------------------
+  // Load existing analysis from URL
+  // ---------------------------------------------
   useEffect(() => {
     if (!queryTag) return;
-
     if (loadedRef.current) return;
+
     loadedRef.current = true;
+    setLoading(true);
 
     async function fetchExisting() {
-      setLoading(true);
       try {
         const res = await apiFetch<any>(
           `/api/v1/analyze_existing?tag=${encodeURIComponent(
@@ -58,14 +62,16 @@ export default function AnalyzePage() {
         );
 
         const detectedType = res.data?.channel_niche ? "channel" : "topic";
+
         setMode(queryType === "topic" ? "topic" : detectedType);
         setResult({ ...res.data, meta: res.meta });
-      } catch (e: any) {
+
+      } catch (err) {
+        console.error("Load Existing Error:", err);
         setFeedback({
           show: true,
           title: "Failed to Load",
-          description:
-            "Could not load existing analysis. It may have expired or been removed.",
+          description: extractApiError(err),
           color: "red",
         });
       } finally {
@@ -76,24 +82,46 @@ export default function AnalyzePage() {
     fetchExisting();
   }, [queryTag, queryType, queryVersion]);
 
-  // --------------------------------------------------
-  // Handle new analysis
-  // --------------------------------------------------
+  // ---------------------------------------------
+  // Validate before submitting analysis request
+  // ---------------------------------------------
+  function validateBeforeSubmit() {
+    if (!input.trim()) {
+      setFeedback({
+        show: true,
+        title: "Missing Input",
+        description:
+          mode === "channel"
+            ? "Please enter a YouTube channel URL or @handle."
+            : "Please enter a topic.",
+        color: "yellow",
+      });
+      return false;
+    }
+
+    return true;
+  }
+
+  // ---------------------------------------------
+  // Submit new analysis request
+  // ---------------------------------------------
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (loading) return;
+    if (!validateBeforeSubmit()) return;
+
     setLoading(true);
     setResult(null);
 
-    let path =
-      mode === "channel" ?
-        `/api/v1/analyze_channel?force_refresh=${forceRefresh}`
+    const path =
+      mode === "channel"
+        ? `/api/v1/analyze_channel?force_refresh=${forceRefresh}`
         : `/api/v1/analyze_topic?force_refresh=${forceRefresh}`;
+
     const body =
       mode === "channel"
         ? { channel_url: input, user_query: context }
         : { topic: input, user_goal: context };
-
-
 
     try {
       const data = await apiFetch<AnalysisResponse>(path, {
@@ -101,18 +129,16 @@ export default function AnalyzePage() {
         body: JSON.stringify(body),
       });
 
-      if (!data?.data) {
-        throw new Error("No valid data returned from the server.");
-      }
+      if (!data?.data) throw new APIError("No data returned from server.");
 
       setResult({ ...data.data, meta: data.meta });
-    } catch (err: any) {
-      console.error(err);
+
+    } catch (err) {
+      console.error("Analysis Submit Error:", err);
       setFeedback({
         show: true,
         title: "Analysis Failed",
-        description:
-          err?.message || "Something went wrong while analyzing your input.",
+        description: extractApiError(err),
         color: "red",
       });
     } finally {
@@ -120,14 +146,16 @@ export default function AnalyzePage() {
     }
   }
 
-  // --------------------------------------------------
+  // ---------------------------------------------
   // Loading state
-  // --------------------------------------------------
-  if (loading) return <LoadingAnalysis message="Analyzing your request..." />;
+  // ---------------------------------------------
+  if (loading) {
+    return <LoadingAnalysis message="Analyzing your request..." />;
+  }
 
-  // --------------------------------------------------
-  // Result state
-  // --------------------------------------------------
+  // ---------------------------------------------
+  // Result view
+  // ---------------------------------------------
   if (result) {
     return (
       <motion.div
@@ -150,7 +178,7 @@ export default function AnalyzePage() {
             <button
               onClick={() => {
                 setResult(null);
-                router.push(`/analyze`);
+                router.push("/analyze");
               }}
               className="px-6 py-3 rounded-xl bg-[#1B1A24] hover:bg-[#2E2D39] text-neutral-300 border border-[#2E2D39] transition-all"
             >
@@ -164,9 +192,9 @@ export default function AnalyzePage() {
     );
   }
 
-  // --------------------------------------------------
-  // Default view
-  // --------------------------------------------------
+  // ---------------------------------------------
+  // Main Form View
+  // ---------------------------------------------
   return (
     <div className="min-h-screen bg-[#0F0E17] text-white py-20">
       <motion.div
@@ -180,7 +208,7 @@ export default function AnalyzePage() {
             AI YouTube Strategist
           </h1>
           <p className="text-neutral-400 max-w-lg mx-auto">
-            Analyze an existing YouTube channel or explore a new content topic.
+            Analyze a YouTube channel or research a new content topic.
           </p>
         </div>
 
@@ -190,7 +218,6 @@ export default function AnalyzePage() {
           transition={{ duration: 0.6 }}
           className="bg-[#1B1A24]/70 backdrop-blur-xl border border-[#2A2935] rounded-2xl p-8 shadow-2xl"
         >
-          {/* Mode toggle */}
           <div className="flex justify-center mb-8 gap-2 bg-[#14131C] rounded-xl p-1">
             <button
               onClick={() => {
@@ -198,23 +225,26 @@ export default function AnalyzePage() {
                 setInput("");
                 setContext("");
               }}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${mode === "channel"
-                ? "bg-[#00F5A0] text-black"
-                : "text-neutral-400 hover:text-white"
-                }`}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                mode === "channel"
+                  ? "bg-[#00F5A0] text-black"
+                  : "text-neutral-400 hover:text-white"
+              }`}
             >
               Analyze Channel
             </button>
+
             <button
               onClick={() => {
                 setMode("topic");
                 setInput("");
                 setContext("");
               }}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${mode === "topic"
-                ? "bg-[#6C63FF] text-white"
-                : "text-neutral-400 hover:text-white"
-                }`}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                mode === "topic"
+                  ? "bg-[#6C63FF] text-white"
+                  : "text-neutral-400 hover:text-white"
+              }`}
             >
               Research Topic
             </button>
@@ -229,7 +259,7 @@ export default function AnalyzePage() {
               placeholder={
                 mode === "channel"
                   ? "YouTube channel URL or @handle"
-                  : "Enter topic (e.g. ‘Exploring food cultures’)"
+                  : "Enter topic (e.g. “Exploring food cultures”)"
               }
               className="w-full rounded-xl bg-[#1B1A24] px-4 py-3 text-white placeholder-neutral-500 border border-[#2E2D39] focus:outline-none focus:ring-1 focus:ring-[#00F5A0]"
             />
@@ -238,18 +268,18 @@ export default function AnalyzePage() {
               <input
                 value={context}
                 onChange={(e) => setContext(e.target.value)}
-                placeholder="Your goal (optional, e.g. ‘grow a food channel’)"
+                placeholder="Your goal (optional, e.g. “grow a food channel”)"
                 className="w-full rounded-xl bg-[#1B1A24] px-4 py-3 text-white placeholder-neutral-500 border border-[#2E2D39] focus:outline-none focus:ring-1 focus:ring-[#6C63FF]"
               />
             )}
+
             <div className="py-2">
               <ToggleSwitch
                 enabled={forceRefresh}
-                onToggle={() => setForceRefresh(prev => !prev)}
+                onToggle={() => setForceRefresh((prev) => !prev)}
                 label="Force Fresh Analysis (recommended)"
               />
             </div>
-
 
             <motion.button
               whileTap={{ scale: 0.97 }}
@@ -266,8 +296,8 @@ export default function AnalyzePage() {
       {/* Feedback Modal */}
       <ConfirmModal
         show={feedback.show}
-        onCancel={() => setFeedback({ ...feedback, show: false })}
-        onConfirm={() => setFeedback({ ...feedback, show: false })}
+        onCancel={() => setFeedback((f) => ({ ...f, show: false }))}
+        onConfirm={() => setFeedback((f) => ({ ...f, show: false }))}
         confirmText="OK"
         title={feedback.title}
         description={feedback.description}

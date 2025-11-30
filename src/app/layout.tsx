@@ -6,8 +6,8 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 
 export const metadata = {
-  title: "YT Analyzer",
-  description: "AI-driven YouTube analysis and strategy generator",
+  title: "Burnzy",
+  description: "Smart YouTube analysis and strategy generator",
 };
 
 export default function RootLayout({
@@ -20,10 +20,11 @@ export default function RootLayout({
       <body className="bg-[#0F0E17] text-white">
         <AuthProvider>
           <Header />
-          <div className="max-w-6xl mx-auto px-6">
+          <div className="mx-auto w-full max-w-7xl px-5 sm:px-6 lg:px-8 py-10">
             <main>{children}</main>
             <div id="drag-portal" />
           </div>
+
           <Footer />
         </AuthProvider>
       </body>

@@ -1,68 +1,107 @@
 // src/lib/api.ts
 
-import { DashboardChartsResponse, DashboardCompetitorsResponse, DashboardKpisResponse, DashboardOverviewResponse } from "@/types/dashboard";
+import {
+  DashboardChartsResponse,
+  DashboardCompetitorsResponse,
+  DashboardKpisResponse,
+  DashboardOverviewResponse,
+} from "@/types/dashboard";
 
-export async function apiFetch<T>(path: string, init?: RequestInit) {
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL!;
+// Central error type so UI can rely on shape
+export class APIError extends Error {
+  status?: number;
+  detail?: any;
+  raw?: any;
+  isApiError: boolean = true;
+  path?: string;
 
-  const res = await fetch(`${base}${path}`, {
-    ...init,
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers || {}),
-    },
-  });
+  constructor(message: string, options?: { status?: number; detail?: any; raw?: any; path?: string }) {
+    super(message);
+    this.name = "APIError";
+    if (options) {
+      this.status = options.status;
+      this.detail = options.detail;
+      this.raw = options.raw;
+      this.path = options.path;
+    }
+  }
+}
 
+// Generic fetch wrapper
+export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+  if (!base) {
+    // Fails fast in dev if env is misconfigured
+    throw new APIError("API base URL is not configured (NEXT_PUBLIC_API_BASE_URL missing).", {
+      status: 0,
+      detail: "Missing NEXT_PUBLIC_API_BASE_URL",
+      path,
+    });
+  }
+
+  let res: Response;
+
+  try {
+    res = await fetch(`${base}${path}`, {
+      ...init,
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        ...(init?.headers || {}),
+      },
+    });
+  } catch (err) {
+    // Network / CORS / DNS errors never hit res.ok
+    throw new APIError("Network error. Please check your connection and try again.", {
+      status: 0,
+      detail: err instanceof Error ? err.message : String(err),
+      raw: err,
+      path,
+    });
+  }
+
+  // Non-2xx HTTP statuses
   if (!res.ok) {
-    let text: any = null;
+    let raw: any = null;
+    let detail: any = null;
 
     try {
-      text = await res.json();      // try json
+      raw = await res.json();
+      detail = raw?.detail || raw?.message || raw;
     } catch {
-      text = await res.text();      // fallback text
+      try {
+        raw = await res.text();
+        detail = raw;
+      } catch {
+        raw = null;
+        detail = null;
+      }
     }
 
-    // Throw structured error (NOT Error object)
-    throw {
+    const message =
+      typeof detail === "string" && detail.length > 0
+        ? detail
+        : `Request failed with status ${res.status}`;
+
+    throw new APIError(message, {
       status: res.status,
-      detail: text?.detail || text,
-      raw: text,
-      isApiError: true,
-    };
+      detail,
+      raw,
+      path,
+    });
   }
-  const json = res.json() as Promise<T>;
 
-  console.log(json)
-
-  return json;
-}
-
-
-
-/* ---------- Dashboard API helpers ---------- */
-
-export async function getDashboardOverview() {
-  return apiFetch<DashboardOverviewResponse>("/api/v1/dashboard/overview");
-}
-
-/* ---------------------------------------------------------
-   IDEAS
---------------------------------------------------------- */
-
-export async function createIdeaFromTrend(
-  trend_idea_uuid: string,
-  channel_tag: string,
-  version: number
-) {
-  return apiFetch("/api/v1/ideas/from_trend", {
-    method: "POST",
-    body: JSON.stringify({ trend_idea_uuid, channel_tag, version }),
-  });
-}
-
-export async function getUpcomingIdeas() {
-  return apiFetch("/api/v1/ideas/upcoming", {
-    method: "GET",
-  });
+  // Happy path: parse JSON safely
+  try {
+    const json = (await res.json()) as T;
+    return json;
+  } catch (err) {
+    throw new APIError("Failed to parse server response.", {
+      status: res.status,
+      detail: err instanceof Error ? err.message : String(err),
+      raw: err,
+      path,
+    });
+  }
 }

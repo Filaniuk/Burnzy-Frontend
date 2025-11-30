@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { apiFetch } from "@/lib/api";
 import { IdeaStatus } from "@/types/calendar";
+import { createPortal } from "react-dom";
+import ConfirmModal from "@/app/pricing/components/ConfirmModal";
 
 interface ScheduleModalProps {
   close: () => void;
@@ -11,7 +13,6 @@ interface ScheduleModalProps {
   reload: () => void;
 }
 
-// Allowed statuses for scheduling (NO unassigned)
 const SCHEDULABLE_STATUSES: IdeaStatus[] = [
   "to_film",
   "to_publish",
@@ -36,28 +37,52 @@ export default function ScheduleModal({
   const [status, setStatus] = useState<IdeaStatus>("to_publish");
   const [loading, setLoading] = useState(false);
 
+  // Error modal state
+  const [showError, setShowError] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
   if (!date || !ideaId) return null;
+
+  // ESC key to close
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [close]);
 
   async function submit() {
     setLoading(true);
 
-    await apiFetch("/api/v1/calendar/schedule", {
-      method: "POST",
-      body: JSON.stringify({
-        idea_id: Number(ideaId),
-        date,
-        status,
-      }),
-    });
+    try {
+      await apiFetch("/api/v1/calendar/schedule", {
+        method: "POST",
+        body: JSON.stringify({
+          idea_id: Number(ideaId),
+          date,
+          status,
+        }),
+      });
 
-    await reload();
-    close();
+      await reload();
+      close();
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err?.message || "Failed to schedule idea.");
+      setShowError(true);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="animate-pop-in w-80 rounded-xl border border-[#2E2D39] bg-[#1B1A24] p-6 shadow-2xl shadow-black/70">
-        <h3 className="mb-4 text-lg font-semibold">Schedule Idea</h3>
+  const modalBody = (
+    <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+
+      <div className="animate-pop-in w-full max-w-xs sm:max-w-sm rounded-xl border border-[#2E2D39] bg-[#1B1A24] p-6 shadow-2xl">
+        <h3 className="mb-4 text-lg font-semibold text-white">
+          Schedule Idea
+        </h3>
 
         <p className="mb-3 text-sm text-neutral-400">
           Date: <span className="text-white">{date}</span>
@@ -81,6 +106,7 @@ export default function ScheduleModal({
           </select>
         </div>
 
+        {/* SAVE BUTTON */}
         <button
           onClick={submit}
           disabled={loading}
@@ -91,11 +117,24 @@ export default function ScheduleModal({
 
         <button
           onClick={close}
-          className="mt-2 w-full py-2 text-sm text-neutral-400 hover:underline"
+          className="mt-2 w-full py-2 text-sm text-neutral-400 hover:text-white transition"
         >
           Cancel
         </button>
       </div>
+
+      {/* Error Modal */}
+      <ConfirmModal
+        show={showError}
+        title="Error"
+        description={errorMsg}
+        confirmText="OK"
+        confirmColor="red"
+        onConfirm={() => setShowError(false)}
+        onCancel={() => setShowError(false)}
+      />
     </div>
   );
+
+  return createPortal(modalBody, document.body);
 }

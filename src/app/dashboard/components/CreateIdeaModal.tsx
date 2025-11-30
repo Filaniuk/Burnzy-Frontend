@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { GradientActionButton } from "@/components/GradientActionButton";
 import { PurpleActionButton } from "@/components/PurpleActionButton";
 import { apiFetch } from "@/lib/api";
+import ConfirmModal from "@/app/pricing/components/ConfirmModal";
 
 interface Props {
   open: boolean;
@@ -37,8 +38,12 @@ export default function CreateIdeaModal({
   const [loading, setLoading] = useState(false);
   const dateRef = useRef<HTMLInputElement | null>(null);
 
+  // ConfirmModal state
+  const [errorOpen, setErrorOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("An error occurred.");
+
   // ---------------------------
-  // VALIDATION FUNCTIONS
+  // VALIDATION
   // ---------------------------
   const validateTitle = () => {
     if (!title.trim()) {
@@ -69,10 +74,14 @@ export default function CreateIdeaModal({
     return true;
   };
 
-  // Validate date AFTER scheduledFor updates
   useEffect(() => {
     validateDate();
   }, [scheduledFor]);
+
+  const normalizeError = (err: any): string => {
+    if (!err) return "Unknown error.";
+    return err.detail || err.message || "Unexpected error.";
+  };
 
   // ---------------------------
   // SUBMIT
@@ -80,7 +89,6 @@ export default function CreateIdeaModal({
   const submit = async () => {
     const validTitle = validateTitle();
     const validDate = validateDate();
-
     if (!validTitle || !validDate) return;
 
     setLoading(true);
@@ -99,132 +107,146 @@ export default function CreateIdeaModal({
 
       onCreated();
       onClose();
-    } catch (err) {
-      console.error(err);
-      // add toast here later if needed
+    } catch (rawErr: any) {
+      console.error("Create idea error:", rawErr);
+      setErrorMessage(normalizeError(rawErr));
+      setErrorOpen(true);
     } finally {
       setLoading(false);
     }
   };
 
-  const isFormInvalid = !title.trim() || titleError !== null || dateError !== null;
+  const isFormInvalid =
+    !title.trim() || titleError !== null || dateError !== null;
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
+    <>
+      <AnimatePresence>
+        {open && (
           <motion.div
-            initial={{ scale: 0.95, opacity: 0, y: 10 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 10 }}
-            className="bg-[#1B1A24] border border-[#2E2D39] rounded-2xl p-6 w-full max-w-md shadow-xl"
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
           >
-            <h2 className="text-xl font-bold text-white text-center mb-6">
-              Create New Idea
-            </h2>
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              className="bg-[#1B1A24] border border-[#2E2D39] rounded-2xl p-6 w-full max-w-md shadow-xl"
+            >
+              <h2 className="text-xl font-bold text-white text-center mb-6">
+                Create New Idea
+              </h2>
 
-            <div className="space-y-4">
-              {/* Title */}
-              <div>
-                <label className="text-neutral-400 text-sm mb-1 block">
-                  Title *
-                </label>
-                <input
-                  className={`w-full bg-[#14131C] border rounded-lg px-3 py-2 text-white outline-none focus:border-[#6C63FF] ${
-                    titleError ? "border-red-500" : "border-[#2E2D39]"
-                  }`}
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  onBlur={validateTitle}
-                  placeholder="Enter idea title"
-                />
-                {titleError && (
-                  <span className="text-red-400 text-xs mt-1 block">
-                    {titleError}
-                  </span>
-                )}
-              </div>
-
-              {/* Status */}
-              <div>
-                <label className="text-neutral-400 text-sm mb-1 block">
-                  Status
-                </label>
-                <select
-                  className="w-full bg-[#14131C] border border-[#2E2D39] rounded-lg px-3 py-2 text-white focus:border-[#6C63FF]"
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                >
-                  {STATUS_OPTIONS.map((s) => (
-                    <option key={s.value} value={s.value}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Date */}
-              <div>
-                <label className="text-neutral-400 text-sm mb-1 block">
-                  Schedule for (optional)
-                </label>
-
-                <div className="relative">
+              <div className="space-y-4">
+                {/* Title */}
+                <div>
+                  <label className="text-neutral-400 text-sm mb-1 block">
+                    Title *
+                  </label>
                   <input
-                    type="date"
-                    ref={(el) => (dateRef.current = el)}
-                    className={`w-full bg-[#14131C] border rounded-lg px-3 py-2 pr-10 text-white focus:border-[#6C63FF] ${
-                      dateError ? "border-red-500" : "border-[#2E2D39]"
+                    className={`w-full bg-[#14131C] border rounded-lg px-3 py-2 text-white outline-none focus:border-[#6C63FF] ${
+                      titleError ? "border-red-500" : "border-[#2E2D39]"
                     }`}
-                    value={scheduledFor}
-                    onChange={(e) => setScheduledFor(e.target.value)}
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    onBlur={validateTitle}
+                    placeholder="Enter idea title"
                   />
-
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-300 hover:text-white"
-                    onClick={() => dateRef.current?.showPicker?.()}
-                  >
-                    📅
-                  </button>
+                  {titleError && (
+                    <span className="text-red-400 text-xs mt-1 block">
+                      {titleError}
+                    </span>
+                  )}
                 </div>
 
-                {dateError && (
-                  <span className="text-red-400 text-xs mt-1 block">
-                    {dateError}
-                  </span>
-                )}
+                {/* Status */}
+                <div>
+                  <label className="text-neutral-400 text-sm mb-1 block">
+                    Status
+                  </label>
+                  <select
+                    className="w-full bg-[#14131C] border border-[#2E2D39] rounded-lg px-3 py-2 text-white focus:border-[#6C63FF]"
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                  >
+                    {STATUS_OPTIONS.map((s) => (
+                      <option key={s.value} value={s.value}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                <style jsx>{`
-                  input[type="date"]::-webkit-calendar-picker-indicator {
-                    opacity: 0;
-                    display: none;
-                  }
-                  input[type="date"] {
-                    color-scheme: dark;
-                  }
-                `}</style>
+                {/* Date */}
+                <div>
+                  <label className="text-neutral-400 text-sm mb-1 block">
+                    Schedule for (optional)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="date"
+                      ref={(el) => (dateRef.current = el)}
+                      className={`w-full bg-[#14131C] border rounded-lg px-3 py-2 pr-10 text-white focus:border-[#6C63FF] ${
+                        dateError ? "border-red-500" : "border-[#2E2D39]"
+                      }`}
+                      value={scheduledFor}
+                      onChange={(e) => setScheduledFor(e.target.value)}
+                    />
+
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-300 hover:text-white"
+                      onClick={() => dateRef.current?.showPicker?.()}
+                    >
+                      📅
+                    </button>
+                  </div>
+
+                  {dateError && (
+                    <span className="text-red-400 text-xs mt-1 block">
+                      {dateError}
+                    </span>
+                  )}
+
+                  <style jsx>{`
+                    input[type="date"]::-webkit-calendar-picker-indicator {
+                      opacity: 0;
+                      display: none;
+                    }
+                    input[type="date"] {
+                      color-scheme: dark;
+                    }
+                  `}</style>
+                </div>
               </div>
-            </div>
 
-            {/* Buttons */}
-            <div className="flex justify-end gap-3 mt-6">
-              <PurpleActionButton label="Cancel" size="md" onClick={onClose} />
-              <GradientActionButton
-                label={loading ? "Saving..." : "Create Idea"}
-                size="md"
-                onClick={submit}
-                disabled={loading || isFormInvalid}
-              />
-            </div>
+              {/* Buttons */}
+              <div className="flex justify-end gap-3 mt-6">
+                <PurpleActionButton label="Cancel" size="md" onClick={onClose} />
+                <GradientActionButton
+                  label={loading ? "Saving..." : "Create Idea"}
+                  size="md"
+                  onClick={submit}
+                  disabled={loading || isFormInvalid}
+                />
+              </div>
+            </motion.div>
           </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+
+      {/* ERROR MODAL */}
+      <ConfirmModal
+        show={errorOpen}
+        title="Create Idea Error"
+        description={errorMessage}
+        confirmText="OK"
+        confirmColor="red"
+        onConfirm={() => setErrorOpen(false)}
+        onCancel={() => setErrorOpen(false)}
+      />
+    </>
   );
 }

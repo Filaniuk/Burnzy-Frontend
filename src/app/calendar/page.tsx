@@ -4,11 +4,13 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { Draggable } from "@fullcalendar/interaction";
 import type { Draggable as FCDraggable } from "@fullcalendar/interaction";
 
-import { apiFetch } from "@/lib/api";
+import { apiFetch, APIError } from "@/lib/api";
+import ConfirmModal from "../pricing/components/ConfirmModal";
 import ScheduleModal from "./components/ScheduleModal";
 import EventModal from "./components/EventModal";
 import CalendarSidebar from "./components/CalendarSidebar";
 import CalendarView from "./components/CalendarView";
+
 import {
   BrandEvent,
   CalendarIdea,
@@ -18,12 +20,18 @@ import {
   ExternalDropArg,
   EventClickArg,
 } from "@/types/calendar";
-import ConfirmModal from "../pricing/components/ConfirmModal";
+
+// Central reusable error formatter — consistent across app
+const getErrorMessage = (err: any): string => {
+  if (err instanceof APIError) return err.detail || err.message;
+  if (err?.message) return err.message;
+  return "Unexpected error occurred.";
+};
 
 export default function CalendarPage() {
-  // -----------------------------
+  // -----------------------------------------------------
   // STATE
-  // -----------------------------
+  // -----------------------------------------------------
   const [events, setEvents] = useState<BrandEvent[]>([]);
   const [unscheduled, setUnscheduled] = useState<CalendarIdea[]>([]);
   const [filming, setFilming] = useState<CalendarIdea[]>([]);
@@ -36,6 +44,7 @@ export default function CalendarPage() {
   const [activeIdeaId, setActiveIdeaId] = useState<number | null>(null);
   const [scheduleDate, setScheduleDate] = useState<string | null>(null);
 
+  const [loading, setLoading] = useState(true);
   const [showConfirm, setShowConfirm] = useState(false);
   const [confirmAction, setConfirmAction] = useState<() => void>(() => {});
   const [cancelAction, setCancelAction] = useState<() => void>(() => {});
@@ -46,22 +55,23 @@ export default function CalendarPage() {
     color: "yellow" as "red" | "yellow" | "green",
   });
 
-  // -----------------------------
+  // -----------------------------------------------------
   // REFS
-  // -----------------------------
+  // -----------------------------------------------------
   const sidebarRef = useRef<HTMLDivElement | null>(null);
   const draggableRef = useRef<FCDraggable | null>(null);
+  const loadingRef = useRef(false); // Avoid duplicate loads
 
-  // -----------------------------
+  // -----------------------------------------------------
   // UTILS
-  // -----------------------------
-  function isPast(dateStr: string) {
+  // -----------------------------------------------------
+  const isPast = (dateStr: string) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return new Date(dateStr).getTime() < today.getTime();
-  }
+  };
 
-  function openConfirmModal({
+  const openConfirmModal = ({
     title,
     description,
     confirmText = "OK",
@@ -75,72 +85,91 @@ export default function CalendarPage() {
     color?: "red" | "yellow" | "green";
     onConfirm: () => void;
     onCancel: () => void;
-  }) {
+  }) => {
     setConfirmMessage({ title, description, button: confirmText, color });
     setConfirmAction(() => onConfirm);
     setCancelAction(() => onCancel);
     setShowConfirm(true);
-  }
+  };
 
-  // -----------------------------
-  // LOAD CALENDAR DATA
-  // -----------------------------
+  // -----------------------------------------------------
+  // LOAD CALENDAR DATA (prod-safe)
+  // -----------------------------------------------------
   const load = useCallback(async () => {
-    const res = await apiFetch("/api/v1/calendar");
-    setCalendarMeta(res.meta);
+    if (loadingRef.current) return;
+    loadingRef.current = true;
 
-    const scheduled: CalendarIdea[] = res.data.scheduled;
-    const unsched: CalendarIdea[] = res.data.unscheduled;
+    setLoading(true);
 
-    setUnscheduled(unsched);
+    try {
+      const res = await apiFetch("/api/v1/calendar");
+      setCalendarMeta(res.meta);
 
-    const film: CalendarIdea[] = [];
-    const toPublish: CalendarIdea[] = [];
-    const publishedIdeas: CalendarIdea[] = [];
-    const archivedIdeas: CalendarIdea[] = [];
-    const mappedEvents: BrandEvent[] = [];
+      const scheduled: CalendarIdea[] = res.data.scheduled;
+      const unsched: CalendarIdea[] = res.data.unscheduled;
 
-    for (const idea of scheduled) {
-      const status = idea.status as IdeaStatus;
+      setUnscheduled(unsched);
 
-      if (status === "to_film") film.push(idea);
-      else if (status === "to_publish") toPublish.push(idea);
-      else if (status === "published") publishedIdeas.push(idea);
-      else if (status === "archived") archivedIdeas.push(idea);
+      const film: CalendarIdea[] = [];
+      const toPublish: CalendarIdea[] = [];
+      const publishedIdeas: CalendarIdea[] = [];
+      const archivedIdeas: CalendarIdea[] = [];
+      const mappedEvents: BrandEvent[] = [];
 
-      if (idea.scheduled_for && status !== "unassigned") {
-        const colors = getEventColors(status);
-        mappedEvents.push({
-          id: `idea-${idea.id}`,
-          title: idea.title,
-          date: idea.scheduled_for,
-          ...colors,
-          extendedProps: {
-            idea_id: idea.id,
-            status,
-          },
-        });
+      for (const idea of scheduled) {
+        const status = idea.status as IdeaStatus;
+
+        if (status === "to_film") film.push(idea);
+        if (status === "to_publish") toPublish.push(idea);
+        if (status === "published") publishedIdeas.push(idea);
+        if (status === "archived") archivedIdeas.push(idea);
+
+        if (idea.scheduled_for && status !== "unassigned") {
+          const colors = getEventColors(status);
+          mappedEvents.push({
+            id: `idea-${idea.id}`,
+            title: idea.title,
+            date: idea.scheduled_for,
+            ...colors,
+            extendedProps: {
+              idea_id: idea.id,
+              status,
+            },
+          });
+        }
       }
-    }
 
-    setFilming(film);
-    setPublishing(toPublish);
-    setPublished(publishedIdeas);
-    setArchived(archivedIdeas);
-    setEvents(mappedEvents);
+      setFilming(film);
+      setPublishing(toPublish);
+      setPublished(publishedIdeas);
+      setArchived(archivedIdeas);
+      setEvents(mappedEvents);
+    } catch (err) {
+      openConfirmModal({
+        title: "Failed to load calendar",
+        description: getErrorMessage(err),
+        color: "red",
+        onConfirm: () => setShowConfirm(false),
+        onCancel: () => setShowConfirm(false),
+      });
+    } finally {
+      loadingRef.current = false;
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  // -----------------------------
+  // -----------------------------------------------------
   // ENABLE DRAGGING FROM SIDEBAR
-  // -----------------------------
+  // -----------------------------------------------------
   useEffect(() => {
     if (!sidebarRef.current) return;
 
-    if (draggableRef.current) draggableRef.current.destroy();
+    // Cleanup previous draggable
+    draggableRef.current?.destroy();
 
     draggableRef.current = new Draggable(sidebarRef.current, {
       itemSelector: ".unscheduled-card",
@@ -158,10 +187,10 @@ export default function CalendarPage() {
     };
   }, [unscheduled]);
 
-  // -----------------------------
+  // -----------------------------------------------------
   // EVENT MOVED INSIDE CALENDAR
-  // -----------------------------
-  function handleEventDrop(info: EventDropArg) {
+  // -----------------------------------------------------
+  const handleEventDrop = async (info: EventDropArg) => {
     const dateStr = info.event.startStr;
 
     if (isPast(dateStr)) {
@@ -181,20 +210,32 @@ export default function CalendarPage() {
       return;
     }
 
-    apiFetch("/api/v1/calendar/schedule", {
-      method: "POST",
-      body: JSON.stringify({
-        idea_id: info.event.extendedProps.idea_id,
-        date: dateStr,
-        status: info.event.extendedProps.status,
-      }),
-    }).then(() => load());
-  }
+    try {
+      await apiFetch("/api/v1/calendar/schedule", {
+        method: "POST",
+        body: JSON.stringify({
+          idea_id: info.event.extendedProps.idea_id,
+          date: dateStr,
+          status: info.event.extendedProps.status,
+        }),
+      });
+      load();
+    } catch (err) {
+      info.revert();
+      openConfirmModal({
+        title: "Failed to update schedule",
+        description: getErrorMessage(err),
+        color: "red",
+        onConfirm: () => setShowConfirm(false),
+        onCancel: () => setShowConfirm(false),
+      });
+    }
+  };
 
-  // -----------------------------
+  // -----------------------------------------------------
   // DROPPED FROM SIDEBAR → CALENDAR
-  // -----------------------------
-  function handleExternalDrop(info: ExternalDropArg) {
+  // -----------------------------------------------------
+  const handleExternalDrop = (info: ExternalDropArg) => {
     const dateStr = info.dateStr;
 
     if (isPast(dateStr)) {
@@ -215,63 +256,77 @@ export default function CalendarPage() {
     setModalType("schedule");
     setActiveIdeaId(Number(id));
     setScheduleDate(dateStr);
-  }
-
-  // -----------------------------
-  // CLICK EVENT → OPEN MODAL
-  // -----------------------------
-  function handleEventClick(info: EventClickArg) {
-    setModalType("event");
-    setActiveIdeaId(info.event.extendedProps.idea_id);
-  }
-
-  // -----------------------------
-  // DELETE IDEA FROM SIDEBAR
-  // -----------------------------
-  const handleDeleteIdea = (id: number) => {
-    setUnscheduled((prev) => prev.filter((i) => i.id !== id));
-    setFilming((prev) => prev.filter((i) => i.id !== id));
-    setPublishing((prev) => prev.filter((i) => i.id !== id));
-    setPublished((prev) => prev.filter((i) => i.id !== id));
-    setArchived((prev) => prev.filter((i) => i.id !== id));
-    setEvents((prev) => prev.filter((e) => e.extendedProps.idea_id !== id));
   };
 
-  // -----------------------------
+  // -----------------------------------------------------
+  // CLICK EVENT → OPEN DETAILS MODAL
+  // -----------------------------------------------------
+  const handleEventClick = (info: EventClickArg) => {
+    setModalType("event");
+    setActiveIdeaId(info.event.extendedProps.idea_id);
+  };
+
+  // -----------------------------------------------------
+  // DELETE IDEA FROM SIDEBAR
+  // -----------------------------------------------------
+  const handleDeleteIdea = (id: number) => {
+    setUnscheduled((p) => p.filter((i) => i.id !== id));
+    setFilming((p) => p.filter((i) => i.id !== id));
+    setPublishing((p) => p.filter((i) => i.id !== id));
+    setPublished((p) => p.filter((i) => i.id !== id));
+    setArchived((p) => p.filter((i) => i.id !== id));
+    setEvents((p) => p.filter((e) => e.extendedProps.idea_id !== id));
+  };
+
+  // -----------------------------------------------------
   // UPCOMING 5 EVENTS
-  // -----------------------------
+  // -----------------------------------------------------
   const nextFive = [...events]
     .sort((a, b) => +new Date(a.date) - +new Date(b.date))
     .slice(0, 5);
 
-  // -----------------------------
-  // RENDER PAGE
-  // -----------------------------
+  // -----------------------------------------------------
+  // RENDER
+  // -----------------------------------------------------
   return (
     <div
-      className="flex min-h-[calc(100vh-80px)] gap-6 text-white"
-      style={{ background: "#0F0E17" }}
+      className="
+        flex flex-col lg:flex-row 
+        min-h-[calc(100vh-80px)] 
+        gap-6 
+        text-white 
+        px-3 md:px-6
+        pt-4 
+        bg-[#0F0E17]
+      "
     >
-      <CalendarSidebar
-        sidebarRef={sidebarRef}
-        meta={calendarMeta}
-        unscheduled={unscheduled}
-        filming={filming}
-        publishing={publishing}
-        published={published}
-        archived={archived}
-        nextFive={nextFive}
-        onDeleteIdea={handleDeleteIdea}
-      />
+      {/* Sidebar – stacks above calendar on mobile */}
+      <div className="w-full lg:w-auto">
+        <CalendarSidebar
+          sidebarRef={sidebarRef}
+          meta={calendarMeta}
+          unscheduled={unscheduled}
+          filming={filming}
+          publishing={publishing}
+          published={published}
+          archived={archived}
+          nextFive={nextFive}
+          onDeleteIdea={handleDeleteIdea}
+        />
+      </div>
 
-      <CalendarView
-        events={events}
-        onEventDrop={handleEventDrop}
-        onExternalDrop={handleExternalDrop}
-        onEventClick={handleEventClick}
-      />
+      {/* Calendar – full width on mobile */}
+      <div className="flex-1 min-w-0">
+        <CalendarView
+          events={events}
+          loading={loading}
+          onEventDrop={handleEventDrop}
+          onExternalDrop={handleExternalDrop}
+          onEventClick={handleEventClick}
+        />
+      </div>
 
-      {/* MODALS */}
+      {/* Modals */}
       {modalType === "schedule" && (
         <ScheduleModal
           close={() => setModalType(null)}
