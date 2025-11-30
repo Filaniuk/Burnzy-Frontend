@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GradientActionButton } from "@/components/GradientActionButton";
 import { PurpleActionButton } from "@/components/PurpleActionButton";
@@ -37,40 +37,51 @@ export default function CreateIdeaModal({
   const [loading, setLoading] = useState(false);
   const dateRef = useRef<HTMLInputElement | null>(null);
 
-  // Validate fields
-  const validate = () => {
-    let valid = true;
-
-    // Title required
+  // ---------------------------
+  // VALIDATION FUNCTIONS
+  // ---------------------------
+  const validateTitle = () => {
     if (!title.trim()) {
       setTitleError("Title is required.");
-      valid = false;
-    } else {
-      setTitleError(null);
+      return false;
     }
-
-    // Date optional, but cannot be in the past
-    if (scheduledFor) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const selected = new Date(scheduledFor);
-
-      if (selected < today) {
-        setDateError("Date cannot be in the past.");
-        valid = false;
-      } else {
-        setDateError(null);
-      }
-    } else {
-      setDateError(null);
-    }
-
-    return valid;
+    setTitleError(null);
+    return true;
   };
 
+  const validateDate = () => {
+    if (!scheduledFor) {
+      setDateError(null);
+      return true;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const selected = new Date(scheduledFor);
+
+    if (selected < today) {
+      setDateError("Date cannot be in the past.");
+      return false;
+    }
+
+    setDateError(null);
+    return true;
+  };
+
+  // Validate date AFTER scheduledFor updates
+  useEffect(() => {
+    validateDate();
+  }, [scheduledFor]);
+
+  // ---------------------------
+  // SUBMIT
+  // ---------------------------
   const submit = async () => {
-    if (!validate()) return;
+    const validTitle = validateTitle();
+    const validDate = validateDate();
+
+    if (!validTitle || !validDate) return;
 
     setLoading(true);
 
@@ -90,13 +101,13 @@ export default function CreateIdeaModal({
       onClose();
     } catch (err) {
       console.error(err);
-      // You may add a toast later
+      // add toast here later if needed
     } finally {
       setLoading(false);
     }
   };
 
-  const isFormInvalid = !!titleError || !!dateError || !title.trim();
+  const isFormInvalid = !title.trim() || titleError !== null || dateError !== null;
 
   return (
     <AnimatePresence>
@@ -129,7 +140,7 @@ export default function CreateIdeaModal({
                   }`}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  onBlur={validate}
+                  onBlur={validateTitle}
                   placeholder="Enter idea title"
                 />
                 {titleError && (
@@ -171,10 +182,7 @@ export default function CreateIdeaModal({
                       dateError ? "border-red-500" : "border-[#2E2D39]"
                     }`}
                     value={scheduledFor}
-                    onChange={(e) => {
-                      setScheduledFor(e.target.value);
-                      validate();
-                    }}
+                    onChange={(e) => setScheduledFor(e.target.value)}
                   />
 
                   <button
@@ -192,7 +200,6 @@ export default function CreateIdeaModal({
                   </span>
                 )}
 
-                {/* Hide native date icon */}
                 <style jsx>{`
                   input[type="date"]::-webkit-calendar-picker-indicator {
                     opacity: 0;

@@ -37,7 +37,7 @@ export default function LoginPage() {
       >
         {/* Title */}
         <h1 className="text-3xl sm:text-4xl font-bold mb-3 bg-gradient-to-r from-[#6C63FF] to-[#00F5A0] bg-clip-text text-transparent">
-          Welcome Back
+          Welcome!
         </h1>
 
         {/* Subtitle */}
@@ -63,14 +63,14 @@ export default function LoginPage() {
         <p className="text-neutral-500 text-xs sm:text-sm mt-6 max-w-sm leading-relaxed">
           By continuing, you agree to our{" "}
           <a
-            href="/terms"
+            href="/legal/terms"
             className="text-[#00F5A0] hover:underline transition-colors"
           >
             Terms of Service
           </a>{" "}
           and{" "}
           <a
-            href="/privacy"
+            href="/legal/privacy"
             className="text-[#00F5A0] hover:underline transition-colors"
           >
             Privacy Policy

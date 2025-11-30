@@ -35,12 +35,14 @@ export function Header() {
     <header className="sticky top-0 z-40 w-full bg-[#0F0E17]/80 backdrop-blur-lg border-b border-[#1D1C26]">
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
         {/* --- Logo --- */}
-        <Link
-          href="/"
-          className="text-2xl font-bold text-white tracking-tight hover:opacity-90 transition"
-        >
-          YT <span className="text-[#6C63FF]">Analyzer</span>
+        <Link href="/" className="flex items-center group">
+          <img
+            src="/logo.webp"
+            alt="Burnzy Logo"
+            className="w-16 max-w-[150px] h-auto object-contain transition-transform group-hover:scale-105"
+          />
         </Link>
+
 
         {/* --- Desktop Navigation --- */}
         <nav className="hidden md:flex items-center gap-6 text-sm text-neutral-300">
@@ -169,6 +171,13 @@ export function Header() {
                   >
                     Pricing
                   </Link>
+                  <Link
+                    href="/legal"
+                    className="hover:text-[#00F5A0]"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Legal
+                  </Link>
 
                   <div className="flex flex-col gap-3 pt-2 border-t border-[#1D1C26] mt-2">
                     <span className="text-center text-[#00F5A0] font-semibold">
@@ -182,7 +191,7 @@ export function Header() {
                       }}
                       className="text-center text-red-400 hover:text-red-300 py-2"
                     >
-                      Log out
+                      Logout
                     </button>
                   </div>
 

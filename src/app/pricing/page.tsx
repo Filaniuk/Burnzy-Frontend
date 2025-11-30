@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Check } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useState, useEffect, useRef } from "react";
 import { PLANS } from "./pricing";
@@ -19,6 +18,9 @@ export default function PricingPage() {
   const [canceling, setCanceling] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [selectedUpgrade, setSelectedUpgrade] = useState<string | null>(null);
+
   const loadedRef = useRef(false);
 
   const [feedback, setFeedback] = useState<{
@@ -33,7 +35,6 @@ export default function PricingPage() {
   // --------------------------------------------------
   useEffect(() => {
     if (!user) return;
-
     if (loadedRef.current) return;
     loadedRef.current = true;
 
@@ -51,8 +52,18 @@ export default function PricingPage() {
     fetchPlan();
   }, [user]);
 
+  const formatDate = (dateStr: string | null | undefined) => {
+    if (!dateStr) return "—";
+    const date = new Date(dateStr);
+    return date.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
   // --------------------------------------------------
-  // Plan switching logic
+  // Plan change logic
   // --------------------------------------------------
   const handlePlanChange = async (planName: string) => {
     if (!user) {
@@ -60,22 +71,25 @@ export default function PricingPage() {
       return;
     }
 
-    const plan = planName.toLowerCase();
+    const planSlug = planName.toLowerCase();
+
     try {
       setLoadingPlan(planName);
 
-      // Free → Paid
+      // Free → Paid (no active subscription)
       if (!currentPlan || currentPlan === "free") {
         const data = await apiFetch<{ checkout_url?: string }>(
-          `/api/v1/billing/create_checkout_session/${plan}`,
+          `/api/v1/billing/create_checkout_session/${planSlug}`,
           { method: "POST" }
         );
-        if (data.checkout_url) window.location.href = data.checkout_url;
+        if (data.checkout_url) {
+          window.location.href = data.checkout_url;
+        }
         return;
       }
 
-      // Already on same plan
-      if (currentPlan === plan) {
+      // Already on this plan
+      if (currentPlan === planSlug) {
         setFeedback({
           show: true,
           title: "Already on this plan",
@@ -85,46 +99,60 @@ export default function PricingPage() {
         return;
       }
 
-      // Switch plan
-      const data = await apiFetch<any>(`/api/v1/billing/switch_plan/${plan}`, {
+      // Paid → Paid (upgrade or downgrade)
+      const data = await apiFetch<{
+        status: string;
+        upgraded?: boolean;
+        target_plan?: string;
+        effective_at?: string | null;
+      }>(`/api/v1/billing/switch_plan/${planSlug}`, {
         method: "POST",
       });
 
-      if (data.status === "requires_checkout") {
-        const checkoutData = await apiFetch<{ checkout_url?: string }>(
-          `/api/v1/billing/create_checkout_session/${plan}`,
-          { method: "POST" }
-        );
-        if (checkoutData.checkout_url)
-          window.location.href = checkoutData.checkout_url;
-        return;
-      }
-
-      if (data.status === "success" && data.downgraded) {
+      if (data.status === "no_change") {
         setFeedback({
           show: true,
-          title: "Plan Downgraded",
-          description: `Successfully downgraded to the ${planName} plan.`,
-          color: "green",
+          title: "No change",
+          description: "Your subscription is already on this plan.",
+          color: "yellow",
         });
-        setCurrentPlan(plan);
         return;
       }
 
+      if (data.status === "success") {
+        const upgraded = !!data.upgraded;
+
+        setFeedback({
+          show: true,
+          title: upgraded ? "Plan upgraded" : "Plan downgraded",
+          description: upgraded
+            ? `Your subscription has been upgraded to ${planName}.`
+            : `Your subscription has been downgraded to ${planName}. Billing is adjusted pro-rata according to our Cancellation & Refund Policy.`,
+          color: "green",
+        });
+
+        setCurrentPlan(planSlug);
+        if (data.effective_at) {
+          setExpiresAt(data.effective_at);
+        }
+        return;
+      }
+
+      // Fallback
       setFeedback({
         show: true,
-        title: "Plan Updated",
-        description: `Your plan has been updated to ${planName}.`,
+        title: "Plan update",
+        description: `Your plan update request was processed.`,
         color: "green",
       });
-      setCurrentPlan(plan);
+      setCurrentPlan(planSlug);
     } catch (err: any) {
       console.error(err);
       setFeedback({
         show: true,
         title: "Error Updating Plan",
         description:
-          err.message || "Something went wrong while updating your plan.",
+          err?.message || "Something went wrong while updating your plan.",
         color: "red",
       });
     } finally {
@@ -143,46 +171,59 @@ export default function PricingPage() {
     await handlePlanChange(selectedDowngrade);
   };
 
+  const handleConfirmedUpgrade = async () => {
+    if (!selectedUpgrade) return;
+    setShowUpgradeModal(false);
+    await handlePlanChange(selectedUpgrade);
+  };
+
+
   // --------------------------------------------------
-  // Cancel subscription
+  // Cancel subscription (at period end)
   // --------------------------------------------------
   const handleCancelSubscription = async () => {
     if (!user) return;
     try {
       setCanceling(true);
-      await apiFetch("/api/v1/billing/cancel_subscription", { method: "POST" });
+      const data = await apiFetch<{ status: string }>(
+        "/api/v1/billing/cancel_subscription",
+        { method: "POST" }
+      );
 
-      setFeedback({
-        show: true,
-        title: "Subscription Canceled",
-        description:
-          "Your subscription has been canceled and downgraded to Free.",
-        color: "green",
-      });
+      if (data.status === "canceled_scheduled") {
+        setFeedback({
+          show: true,
+          title: "Cancellation Scheduled",
+          description: expiresAt
+            ? `Your subscription will end on ${formatDate(
+              expiresAt
+            )}. You will keep access to paid features until then.`
+            : "Your subscription will be canceled at the end of your current billing period. You will keep access to paid features until then.",
+          color: "green",
+        });
+      } else {
+        setFeedback({
+          show: true,
+          title: "Subscription Updated",
+          description:
+            "Your subscription cancellation has been requested. You will keep access until the end of your billing period.",
+          color: "green",
+        });
+      }
+
       setShowCancelModal(false);
-      setCurrentPlan("free");
     } catch (err: any) {
       console.error(err);
       setFeedback({
         show: true,
         title: "Cancel Failed",
         description:
-          err.message || "Failed to cancel subscription. Try again later.",
+          err?.message || "Failed to cancel subscription. Try again later.",
         color: "red",
       });
     } finally {
       setCanceling(false);
     }
-  };
-
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return "—";
-    const date = new Date(dateStr);
-    return date.toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
   };
 
   // --------------------------------------------------
@@ -211,7 +252,8 @@ export default function PricingPage() {
             </span>
             {expiresAt && (
               <>
-                {" "}· Renewal:{" "}
+                {" "}
+                · Renewal / End:{" "}
                 <span className="text-[#00F5A0] font-medium">
                   {formatDate(expiresAt)}
                 </span>
@@ -233,14 +275,27 @@ export default function PricingPage() {
           const isDowngrade = plan.price < currentPrice;
 
           const handleClick = () => {
+            if (!currentPlan || currentPlan === "free") {
+              handlePlanChange(plan.name);
+              return;
+            }
             if (isDowngrade) {
               confirmDowngrade(plan.name);
-            } else {
-              handlePlanChange(plan.name);
+              return;
             }
+
+            // NEW — handle upgrades via modal
+            if (isUpgrade) {
+              setSelectedUpgrade(plan.name);
+              setShowUpgradeModal(true);
+              return;
+            }
+
+            handlePlanChange(plan.name);
+
           };
 
-          /* ---------- Correct Button Logic ---------- */
+          // Button text + style
           let label = "";
           let style = "";
 
@@ -250,10 +305,7 @@ export default function PricingPage() {
           } else if (loadingPlan === plan.name) {
             label = "Processing...";
             style = "bg-white/20 text-white opacity-60";
-          } else if (!currentPlan || currentPlan === "free") {
-            label = `Upgrade to ${plan.name}`;
-            style = "bg-[#00F5A0] text-black hover:bg-[#00d98b]";
-          } else if (isUpgrade) {
+          } else if (!currentPlan || currentPlan === "free" || isUpgrade) {
             label = `Upgrade to ${plan.name}`;
             style = "bg-[#00F5A0] text-black hover:bg-[#00d98b]";
           } else if (isDowngrade) {
@@ -286,7 +338,6 @@ export default function PricingPage() {
                 <CollapsibleFeatures features={plan.features} />
               </div>
 
-              {/* Buttons */}
               {plan.name === "Free" ? (
                 <button
                   onClick={() =>
@@ -314,10 +365,10 @@ export default function PricingPage() {
       <footer className="text-neutral-500 text-sm mt-10 text-center">
         Need a custom enterprise plan?{" "}
         <a
-          href="mailto:sales@contentai.com"
+          href="mailto:contact@burnzy.co"
           className="text-[#00F5A0] hover:underline"
         >
-          Contact us
+          contact@burnzy.co
         </a>
       </footer>
 
@@ -334,30 +385,44 @@ export default function PricingPage() {
         </p>
       )}
 
-      {/* Modals */}
+      {/* Cancel Modal */}
       <ConfirmModal
         show={showCancelModal}
         onCancel={() => setShowCancelModal(false)}
         onConfirm={handleCancelSubscription}
         confirmText="Yes, Cancel"
         title="Cancel your subscription?"
-        description="You’ll lose access to exclusive features immediately after canceling."
+        description="Your subscription will remain active until the end of your current billing period. You’ll keep access to paid features until then, and your plan will not renew afterward."
         loading={canceling}
         confirmColor="red"
       />
 
+      <ConfirmModal
+        show={showUpgradeModal}
+        onCancel={() => setShowUpgradeModal(false)}
+        onConfirm={handleConfirmedUpgrade}
+        confirmText="Yes, Upgrade"
+        title="Upgrade your plan?"
+        description="Upgrading now will give you immediate access to the selected plan. A prorated charge for the upgrade will be applied immediately."
+        loading={loadingPlan !== null}
+        confirmColor="#00F5A0"
+      />
+
+
+      {/* Downgrade Modal */}
       <ConfirmModal
         show={showDowngradeModal}
         onCancel={() => setShowDowngradeModal(false)}
         onConfirm={handleConfirmedDowngrade}
         confirmText="Yes, Downgrade"
         title="Downgrade your plan?"
-        description="Your current billing cycle and features will remain until expiry. Downgrade now?"
+        description="Your plan will change immediately. Higher-tier features will be removed now. Any price difference will be prorated and credited to your next invoice."
         loading={loadingPlan !== null}
         confirmColor="red"
       />
 
-      {/* Feedback modal for success/error */}
+
+      {/* Feedback Modal */}
       <ConfirmModal
         show={feedback.show}
         onCancel={() => setFeedback({ ...feedback, show: false })}

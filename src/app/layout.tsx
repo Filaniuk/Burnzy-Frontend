@@ -19,11 +19,12 @@ export default function RootLayout({
     <html lang="en">
       <body className="bg-[#0F0E17] text-white">
         <AuthProvider>
-          <Header/>
+          <Header />
           <div className="max-w-6xl mx-auto px-6">
             <main>{children}</main>
             <div id="drag-portal" />
           </div>
+          <Footer />
         </AuthProvider>
       </body>
     </html>
