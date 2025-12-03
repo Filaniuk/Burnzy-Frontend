@@ -32,7 +32,7 @@ export default function IdeaCard({
     setDeleting(true);
 
     try {
-      await apiFetch("/api/v1/ideas/delete", {
+      await apiFetch<any>("/api/v1/ideas/delete", {
         method: "POST",
         body: JSON.stringify({ idea_id: idea.id }),
       });

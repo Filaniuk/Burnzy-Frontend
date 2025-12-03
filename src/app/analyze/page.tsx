@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-
 import { apiFetch, APIError } from "@/lib/api";
 import { extractApiError } from "@/lib/errors";
 
@@ -56,9 +55,7 @@ export default function AnalyzePage() {
     async function fetchExisting() {
       try {
         const res = await apiFetch<any>(
-          `/api/v1/analyze_existing?tag=${encodeURIComponent(
-            queryTag
-          )}&version=${queryVersion || 1}`
+          `/api/v1/analyze_existing?tag=${encodeURIComponent(queryTag || "")}&version=${queryVersion || 1}`
         );
 
         const detectedType = res.data?.channel_niche ? "channel" : "topic";
@@ -158,6 +155,7 @@ export default function AnalyzePage() {
   // ---------------------------------------------
   if (result) {
     return (
+
       <motion.div
         className="min-h-screen bg-[#0F0E17] text-white py-20 px-4"
         initial={{ opacity: 0 }}
@@ -189,14 +187,17 @@ export default function AnalyzePage() {
           <AnalysisReport data={result} type={mode} />
         </div>
       </motion.div>
+
     );
+
   }
 
   // ---------------------------------------------
   // Main Form View
   // ---------------------------------------------
   return (
-    <div className="min-h-screen bg-[#0F0E17] text-white py-20">
+
+    <div className="min-h-screen bg-[#0F0E17] text-white py-10">
       <motion.div
         className="max-w-3xl mx-auto px-4"
         initial={{ opacity: 0 }}
@@ -225,11 +226,10 @@ export default function AnalyzePage() {
                 setInput("");
                 setContext("");
               }}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                mode === "channel"
-                  ? "bg-[#00F5A0] text-black"
-                  : "text-neutral-400 hover:text-white"
-              }`}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${mode === "channel"
+                ? "bg-[#00F5A0] text-black"
+                : "text-neutral-400 hover:text-white"
+                }`}
             >
               Analyze Channel
             </button>
@@ -240,11 +240,10 @@ export default function AnalyzePage() {
                 setInput("");
                 setContext("");
               }}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                mode === "topic"
-                  ? "bg-[#6C63FF] text-white"
-                  : "text-neutral-400 hover:text-white"
-              }`}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${mode === "topic"
+                ? "bg-[#6C63FF] text-white"
+                : "text-neutral-400 hover:text-white"
+                }`}
             >
               Research Topic
             </button>
@@ -304,5 +303,6 @@ export default function AnalyzePage() {
         confirmColor={feedback.color}
       />
     </div>
+
   );
 }

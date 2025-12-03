@@ -41,7 +41,7 @@ export default function EventModal({ close, ideaId, reload }: EventModalProps) {
     if (!ideaId) return;
 
     setLoading(true);
-    apiFetch(`/api/v1/ideas/${ideaId}`)
+    apiFetch<any>(`/api/v1/ideas/${ideaId}`)
       .then((res) => {
         const data = res.data as IdeaResponse;
         setIdea(data);
@@ -80,7 +80,7 @@ export default function EventModal({ close, ideaId, reload }: EventModalProps) {
   async function saveStatus() {
     setSaving(true);
     try {
-      await apiFetch("/api/v1/ideas/update_status", {
+      await apiFetch<any>("/api/v1/ideas/update_status", {
         method: "POST",
         body: JSON.stringify({
           idea_id: ideaId,

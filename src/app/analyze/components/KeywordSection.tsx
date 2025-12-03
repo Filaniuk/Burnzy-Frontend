@@ -1,8 +1,8 @@
-import { motion } from "framer-motion";
+import { easeOut, motion } from "framer-motion";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: "easeOut" } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: easeOut } },
 };
 
 export default function KeywordSection({ keywords }: { keywords: string[] }) {

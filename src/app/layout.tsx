@@ -8,6 +8,9 @@ import { Footer } from "@/components/Footer";
 export const metadata = {
   title: "Burnzy",
   description: "Smart YouTube analysis and strategy generator",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({

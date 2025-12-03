@@ -1,7 +1,7 @@
 "use client";
 
 import PrimaryButton from "./PrimaryButton";
-import { motion } from "framer-motion";
+import { easeOut, motion } from "framer-motion";
 
 export default function FinalCTA() {
   return (
@@ -10,7 +10,7 @@ export default function FinalCTA() {
         initial={{ opacity: 0, y: 24 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
-        transition={{ duration: 0.7, ease: "easeOut" }}
+        transition={{ duration: 0.7, ease: easeOut }}
         className="max-w-3xl mx-auto text-center"
       >
         {/* TITLE */}

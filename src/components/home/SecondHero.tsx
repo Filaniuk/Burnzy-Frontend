@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import PrimaryButton from "./PrimaryButton";
-import { motion } from "framer-motion";
+import { easeOut, motion } from "framer-motion";
 import { useRef } from "react";
 import { CheckCircle, CalendarDays, Sparkles, PenTool } from "lucide-react";
 
@@ -12,7 +12,7 @@ export default function SecondHero() {
         visible: {
             opacity: 1,
             y: 0,
-            transition: { duration: 0.7, ease: "easeOut" },
+            transition: { duration: 0.7, ease: easeOut },
         },
     };
 

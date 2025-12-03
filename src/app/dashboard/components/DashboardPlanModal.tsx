@@ -5,13 +5,18 @@ import { motion, AnimatePresence } from "framer-motion";
 import { GradientActionButton } from "@/components/GradientActionButton";
 import { useRouter } from "next/navigation";
 
-export default function DashboardPlanModal({ channel, onClose }) {
+interface DashboardPlanModalProps {
+  channel: any;
+  onClose: () => void;
+}
+
+export default function DashboardPlanModal({ channel, onClose } : DashboardPlanModalProps) {
   const router = useRouter();
 
   const [uploadsPerWeek, setUploadsPerWeek] = useState(2);
   const [weeks, setWeeks] = useState(3);
   const [generating, setGenerating] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<any>(null);
 
   const totalVideos = uploadsPerWeek * weeks;
 

@@ -27,7 +27,7 @@ export default function IdeaThumbnail({ v, ideaUuid }: any) {
     try {
       setThumbLoading(true);
 
-      const res = (await apiFetch(`/api/v1/generate_thumbnail/${ideaUuid}`, {
+      const res = (await apiFetch<any>(`/api/v1/generate_thumbnail/${ideaUuid}`, {
         method: "POST",
       })) as GenerateThumbnailResponse;
 

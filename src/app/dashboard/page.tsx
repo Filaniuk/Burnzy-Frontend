@@ -1,30 +1,31 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Calendar, LineChart } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { apiFetch, getUpcomingIdeas } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 
-import { GradientActionButton } from "@/components/GradientActionButton";
-import { PurpleActionButton } from "@/components/PurpleActionButton";
-import LoadingAnalysis from "@/components/LoadingAnalysis";
 import ConfirmModal from "@/app/pricing/components/ConfirmModal";
+import { GradientActionButton } from "@/components/GradientActionButton";
+import LoadingAnalysis from "@/components/LoadingAnalysis";
+import { PurpleActionButton } from "@/components/PurpleActionButton";
 
 import ActionButton from "./components/ActionButton";
-import SectionTitle from "./components/SectionTitle";
-import IdeaCountCard from "./components/IdeaCountCard";
-import UpcomingTimeline from "./components/UpcomingTimeline";
 import ChannelInsightsSection from "./components/ChannelInsightsSection";
-import TrendIdeasSection from "./components/TrendIdeasSection";
 import DashboardPlanModal from "./components/DashboardPlanModal";
+import IdeaCountCard from "./components/IdeaCountCard";
+import SectionTitle from "./components/SectionTitle";
+import TrendIdeasSection from "./components/TrendIdeasSection";
+import UpcomingTimeline from "./components/UpcomingTimeline";
 
 import { DashboardOverviewResponse } from "@/types/dashboard";
+import Unauthorized from "@/components/Unauthorized";
 
 export default function DashboardPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, unauthorized } = useAuth();
   const router = useRouter();
   const loadedRef = useRef(false);
 
@@ -50,11 +51,13 @@ export default function DashboardPage() {
         setData(res);
       } catch (err: any) {
         console.error("Dashboard failed:", err);
+        // --- other errors ---
         setErrorMessage(err?.message || "Failed to load your dashboard.");
         setErrorOpen(true);
       } finally {
         setLoadingData(false);
       }
+
     }
 
     load();
@@ -65,13 +68,14 @@ export default function DashboardPage() {
   // -----------------------------
   const refreshUpcoming = useCallback(async () => {
     try {
-      const res = apiFetch("/api/v1/ideas/upcoming", {
+      const res = await apiFetch<any>("/api/v1/ideas/upcoming", {
         method: "GET",
       });
       setData((prev) => {
         if (!prev) return prev;
         return { ...prev, upcoming_ideas: res.data };
       });
+
     } catch (err: any) {
       console.error("Failed to refresh upcoming ideas:", err);
       setErrorMessage(err?.message || "Failed to refresh upcoming content.");
@@ -81,30 +85,19 @@ export default function DashboardPage() {
 
   // -----------------------------
   // Loading State
-  // -----------------------------
-  if (loading || loadingData) {
-    return <LoadingAnalysis message="Loading your dashboard" />;
+  // ----------------------------
+  if (unauthorized || !user) {
+    return (
+      <Unauthorized
+        title="No analyses yet"
+        description="You haven’t analyzed any channels or topics yet. Log in to continue."
+        buttonText="Login"
+      />
+    );
   }
 
-  // -----------------------------
-  // If not logged in
-  // -----------------------------
-  if (!user) {
-    return (
-      <>
-        <div className="min-h-screen bg-[#0F0E17]" />
-
-        <ConfirmModal
-          show={true}
-          title="Authentication Required"
-          description="You must be logged in to view your dashboard."
-          confirmText="Go to Login"
-          confirmColor="yellow"
-          onConfirm={() => router.push("/login")}
-          onCancel={() => router.push("/login")}
-        />
-      </>
-    );
+  if (loading || loadingData) {
+    return <LoadingAnalysis message="Loading your dashboard" />;
   }
 
   if (!data) {
@@ -309,17 +302,18 @@ export default function DashboardPage() {
             />
           )}
 
-          {/* UPCOMING */}
-          <SectionTitle title="Upcoming Content" />
 
-          {primary_channel && (
+
+          {primary_channel && (<>
+            < SectionTitle title="Upcoming Content" />
             <UpcomingTimeline
               upcoming={upcoming_ideas}
               tag={primary_channel.tag}
               version={primary_channel.version}
               onRefreshUpcoming={refreshUpcoming}
             />
-          )}
+
+          </>)}
         </motion.div>
 
         {showPlanModal && primary_channel && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useSearchParams, useParams } from "next/navigation";
+import { useSearchParams, useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { motion } from "framer-motion";
@@ -15,7 +15,8 @@ import { PurpleActionButton } from "@/components/PurpleActionButton";
 export default function ContentPlanPage() {
   const params = useParams();
   const searchParams = useSearchParams();
-
+    const router = useRouter();
+  
   const tag = decodeURIComponent(params.tag as string);
   const version = params.version ? Number(params.version) : 1;
   const uploadsPerWeek = Number(searchParams.get("uploads") || 2);
@@ -47,7 +48,7 @@ export default function ContentPlanPage() {
       setLoading(true);
 
       try {
-        const res = await apiFetch("/api/v1/content_plan", {
+        const res = await apiFetch<any>("/api/v1/content_plan", {
           method: "POST",
           body: JSON.stringify({
             channel_tag: tag,
@@ -96,7 +97,7 @@ export default function ContentPlanPage() {
     }
 
     try {
-      await apiFetch("/api/v1/calendar/import_plan", {
+      await apiFetch<any>("/api/v1/calendar/import_plan", {
         method: "POST",
         body: JSON.stringify({
           plan_uuid: plan.plan_uuid,
@@ -149,6 +150,12 @@ export default function ContentPlanPage() {
         <p className="text-neutral-400 mb-6 max-w-md">
           We couldn’t generate a plan. Try again later.
         </p>
+        <button
+          onClick={() => router.push("/dashboard")}
+          className="px-5 py-2.5 rounded-xl bg-[#1B1A24] hover:bg-[#2E2D39] text-neutral-300 border border-[#2E2D39] transition-all"
+        >
+          ← Back
+        </button>
 
         <ConfirmModal
           show={feedback.show}

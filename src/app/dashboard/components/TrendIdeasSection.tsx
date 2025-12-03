@@ -28,7 +28,7 @@ export default function TrendIdeasSection({ tag, version }: { tag: string; versi
     setLoading(true);
 
     try {
-      const res = await apiFetch("/api/v1/trend_ideas/latest_full", {
+      const res = await apiFetch<any>("/api/v1/trend_ideas/latest_full", {
         method: "POST",
         body: JSON.stringify({ channel_tag: tag, version }),
       });
@@ -66,7 +66,7 @@ export default function TrendIdeasSection({ tag, version }: { tag: string; versi
     setGenerating(true);
 
     try {
-      await apiFetch("/api/v1/trend_ideas", {
+      await apiFetch<any>("/api/v1/trend_ideas", {
         method: "POST",
         body: JSON.stringify({ tag, version }),
       });
@@ -83,7 +83,7 @@ export default function TrendIdeasSection({ tag, version }: { tag: string; versi
 
   async function generateMoreIdeas() {
     try {
-      await apiFetch("/api/v1/trend_ideas/generate_more", {
+      await apiFetch<any>("/api/v1/trend_ideas/generate_more", {
         method: "POST",
         body: JSON.stringify({ channel_tag: tag, version }),
       });

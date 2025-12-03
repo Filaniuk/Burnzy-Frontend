@@ -1,13 +1,3 @@
-// src/lib/api.ts
-
-import {
-  DashboardChartsResponse,
-  DashboardCompetitorsResponse,
-  DashboardKpisResponse,
-  DashboardOverviewResponse,
-} from "@/types/dashboard";
-
-// Central error type so UI can rely on shape
 export class APIError extends Error {
   status?: number;
   detail?: any;

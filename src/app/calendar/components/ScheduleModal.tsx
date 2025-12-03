@@ -56,7 +56,7 @@ export default function ScheduleModal({
     setLoading(true);
 
     try {
-      await apiFetch("/api/v1/calendar/schedule", {
+      await apiFetch<any>("/api/v1/calendar/schedule", {
         method: "POST",
         body: JSON.stringify({
           idea_id: Number(ideaId),

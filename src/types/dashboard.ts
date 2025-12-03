@@ -41,6 +41,7 @@ export interface DashboardPrimaryChannel {
 export interface DashboardOverviewResponse {
   primary_channel: {
     id: number;
+    is_topic : boolean;
     tag: string;
     channel_name: string;
     subscribers: number | null;
@@ -117,8 +118,8 @@ export interface DashboardUpcomingIdea {
   title: string;
   scheduled_for: string | null;
   status: string;
-  uuid: string
-  is_manual: boolean
+  uuid?: string;
+  is_manual?: boolean;
 }
 
 export interface DashboardTrendBlock {

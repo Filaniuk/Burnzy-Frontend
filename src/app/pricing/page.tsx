@@ -319,7 +319,7 @@ export default function PricingPage() {
   // UI
   // --------------------------------------------------
   return (
-    <div className="min-h-screen bg-[#0F0E17] text-white flex flex-col items-center py-16 px-4 sm:px-6 lg:px-10">
+    <div className="min-h-screen bg-[#0F0E17] text-white flex flex-col items-center py-8 px-4 sm:px-6 lg:px-10">
       {/* Header */}
       <PricingHeader
         currentPlan={currentPlan}

@@ -78,7 +78,7 @@ export default function AnalysisReport({ data, type }: Props) {
     setIsPrimary(newValue);
 
     try {
-      await apiFetch("/api/v1/set_primary_channel", {
+      await apiFetch<any>("/api/v1/set_primary_channel", {
         method: "POST",
         body: JSON.stringify({ channel_id: id }),
       });

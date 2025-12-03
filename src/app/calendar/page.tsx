@@ -58,9 +58,9 @@ export default function CalendarPage() {
   // -----------------------------------------------------
   // REFS
   // -----------------------------------------------------
-  const sidebarRef = useRef<HTMLDivElement | null>(null);
+  const sidebarRef = useRef<any>(null);
   const draggableRef = useRef<FCDraggable | null>(null);
-  const loadingRef = useRef(false); // Avoid duplicate loads
+  const loadingRef = useRef<true | false>(false); // Avoid duplicate loads
 
   // -----------------------------------------------------
   // UTILS
@@ -102,7 +102,7 @@ export default function CalendarPage() {
     setLoading(true);
 
     try {
-      const res = await apiFetch("/api/v1/calendar");
+      const res = await apiFetch<any>("/api/v1/calendar");
       setCalendarMeta(res.meta);
 
       const scheduled: CalendarIdea[] = res.data.scheduled;
@@ -211,7 +211,7 @@ export default function CalendarPage() {
     }
 
     try {
-      await apiFetch("/api/v1/calendar/schedule", {
+      await apiFetch<any>("/api/v1/calendar/schedule", {
         method: "POST",
         body: JSON.stringify({
           idea_id: info.event.extendedProps.idea_id,
@@ -319,7 +319,6 @@ export default function CalendarPage() {
       <div className="flex-1 min-w-0">
         <CalendarView
           events={events}
-          loading={loading}
           onEventDrop={handleEventDrop}
           onExternalDrop={handleExternalDrop}
           onEventClick={handleEventClick}

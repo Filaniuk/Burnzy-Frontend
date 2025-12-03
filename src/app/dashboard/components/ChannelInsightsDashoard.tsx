@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, easeOut } from "framer-motion";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { BarChart2, Zap, TrendingUp, Lightbulb } from "lucide-react";
 
@@ -16,7 +16,7 @@ export default function ChannelInsightsDashboard({
   scale,
 }: {
   insights: Insight[];
-  scale?: number | null;
+  scale: number | null;
 }) {
   // SECTION EXPAND STATE (show top 2 or all)
   const [expandedSection, setExpandedSection] = useState(false);
@@ -105,7 +105,7 @@ export default function ChannelInsightsDashboard({
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${(insight.impact_score / 10) * 100}%` }}
-                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    transition={{ duration: 0.8, ease: easeOut }}
                     className="h-full rounded-full"
                     style={{
                       background: `linear-gradient(90deg, ${color}, #00F5A0)`,
@@ -186,7 +186,7 @@ export default function ChannelInsightsDashboard({
                   fill="none"
                   initial={{ pathLength: 0 }}
                   animate={{ pathLength: scale / 10 }}
-                  transition={{ duration: 1.2, ease: "easeOut" }}
+                  transition={{ duration: 1.2, ease: easeOut }}
                 />
               </svg>
 

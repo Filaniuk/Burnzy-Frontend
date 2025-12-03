@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import { apiFetch } from "@/lib/api";
 import { extractApiError } from "@/lib/errors";   // ✅ ADD THIS
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, easeOut } from "framer-motion";
 import { BarChart2, Zap, TrendingUp, Lightbulb } from "lucide-react";
 
 type Insight = {
@@ -100,7 +100,7 @@ export default function ChannelInsights({
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -40 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
+        transition={{ duration: 0.5, ease: easeOut }}
         className="mt-10 bg-gradient-to-b from-[#14131C]/90 to-[#0F0E17]/90 border border-[#2A2935] rounded-2xl p-6 sm:p-8 shadow-[0_0_25px_rgba(108,99,255,0.15)]"
       >
         <h2 className="text-2xl sm:text-3xl font-bold mb-6 bg-gradient-to-r from-[#00F5A0] to-[#6C63FF] bg-clip-text text-transparent text-center">
@@ -154,7 +154,7 @@ export default function ChannelInsights({
                     animate={{
                       width: `${(insight.impact_score / 10) * 100}%`,
                     }}
-                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    transition={{ duration: 0.8, ease: easeOut }}
                     className="h-full rounded-full"
                     style={{
                       background: `linear-gradient(90deg, ${color}, #00F5A0)`,
@@ -202,7 +202,7 @@ export default function ChannelInsights({
                     fill="none"
                     initial={{ pathLength: 0 }}
                     animate={{ pathLength: scale / 10 }}
-                    transition={{ duration: 1.2, ease: "easeOut" }}
+                    transition={{ duration: 1.2, ease: easeOut }}
                   />
                 </svg>
                 <span className="text-lg sm:text-xl font-bold text-[#00F5A0]">

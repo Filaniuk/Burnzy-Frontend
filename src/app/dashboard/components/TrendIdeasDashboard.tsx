@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, easeOut } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { GradientActionButton } from "@/components/GradientActionButton";
 import { apiFetch } from "@/lib/api";
@@ -59,7 +59,7 @@ export default function TrendIdeasDashboard({
 
   async function saveIdea() {
     try {
-      await apiFetch("/api/v1/ideas/save_from_trend", {
+      await apiFetch<any>("/api/v1/ideas/save_from_trend", {
         method: "POST",
         body: JSON.stringify({
           idea_uuid: idea.uuid,
@@ -105,7 +105,7 @@ export default function TrendIdeasDashboard({
           initial="enter"
           animate="center"
           exit="exit"
-          transition={{ duration: 0.35, ease: "easeOut" }}
+          transition={{ duration: 0.35, ease: easeOut }}
           className="relative w-full max-w-3xl mx-auto bg-[#16151E] rounded-2xl border border-[#2E2D39] shadow-xl px-6 py-8 mt-6"
         >
           {/* Arrows (Desktop Only) */}

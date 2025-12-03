@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
-import { motion } from "framer-motion";
+import { easeOut, motion } from "framer-motion";
 import ConfirmModal from "@/app/pricing/components/ConfirmModal";
 
 export default function LoginPage() {
@@ -20,7 +20,7 @@ export default function LoginPage() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await apiFetch("/auth/me");
+        const res = await apiFetch<any>("/auth/me");
 
         // Backend returns email, plan, etc.
         if (res?.email) {
@@ -56,7 +56,7 @@ export default function LoginPage() {
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
+          transition={{ duration: 0.4, ease: easeOut }}
           className="flex flex-col items-center text-center w-full max-w-md p-8 sm:p-10 bg-[#1B1A24]/60 rounded-2xl border border-[#2E2D39] shadow-xl"
         >
           {/* Title */}

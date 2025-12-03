@@ -42,7 +42,7 @@ export default function TrendIdeasManager({
 
   async function saveIdea(i: any) {
     try {
-      await apiFetch("/api/v1/ideas/save_from_trend", {
+      await apiFetch<any>("/api/v1/ideas/save_from_trend", {
         method: "POST",
         body: JSON.stringify({
           idea_uuid: i.uuid,

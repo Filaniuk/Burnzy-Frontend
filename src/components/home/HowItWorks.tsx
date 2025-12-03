@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { easeOut, motion } from "framer-motion";
 import { Lightbulb, LineChart, Rocket } from "lucide-react";
 
 export default function HowItWorks() {
@@ -9,7 +9,7 @@ export default function HowItWorks() {
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.6, ease: "easeOut" },
+      transition: { duration: 0.6, ease: easeOut },
     },
   };
 

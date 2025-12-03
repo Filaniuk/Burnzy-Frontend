@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, easeOut } from "framer-motion";
 
 export default function PreviewFeatures() {
   const [zoomSrc, setZoomSrc] = useState<string | null>(null);
@@ -12,7 +12,7 @@ export default function PreviewFeatures() {
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.7, ease: "easeOut" },
+      transition: { duration: 0.7, ease: easeOut },
     },
   };
 

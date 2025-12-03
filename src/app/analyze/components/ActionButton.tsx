@@ -1,10 +1,18 @@
 import { GradientActionButton } from "@/components/GradientActionButton";
-import { motion } from "framer-motion";
+import { motion, easeOut } from "framer-motion";
 
 const fadeUp = {
-  hidden: { opacity: 0, y: 30 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: "easeOut" } },
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.4,
+      ease: easeOut,
+    },
+  },
 };
+
 
 export default function ActionButtons({
   type,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, easeOut } from "framer-motion";
 import Image from "next/image";
 
 export default function Reviews() {
@@ -38,17 +38,17 @@ export default function Reviews() {
     const prev = () => setIndex((prev) => (prev - 1 + reviews.length) % reviews.length);
 
     return (
-        <section className="w-full bg-[#0F0E17] text-white py-5 px-6">
+        <section className="w-full bg-[#0F0E17] text-white py-5 px-4">
             <div className="max-w-6xl mx-auto">
 
-                <h2 className="text-3xl md:text-4xl font-bold mb-16 tracking-tight">
+                <h2 className="text-2xl md:text-4xl font-bold mb-10 tracking-tight text-center md:text-left">
                     Creators are already using it to plan smarter
                 </h2>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-14 md:gap-6 items-center">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-10 items-center">
 
                     {/* LEFT STATS */}
-                    <div className="text-center md:text-left space-y-6">
+                    <div className="text-center md:text-left space-y-6 order-2 md:order-1">
                         <div>
                             <p className="text-[#00F5A0] font-extrabold text-3xl">4,000+</p>
                             <p className="text-neutral-400 text-sm">Ideas generated last week</p>
@@ -60,19 +60,10 @@ export default function Reviews() {
                     </div>
 
                     {/* REVIEW CARD + ARROWS */}
-                    <div className="flex items-center justify-center relative">
-
-                        {/* LEFT ARROW */}
-                        <button
-                            onClick={prev}
-                            className="mr-6 px-3 py-2 rounded-full bg-[#1A1A24] hover:bg-[#23232E] transition text-neutral-300 hover:text-white z-20"
-                        >
-                            ◀
-                        </button>
+                    <div className="flex flex-col items-center justify-center relative order-1 md:order-2">
 
                         {/* CARD WRAPPER */}
-                        <div className="relative w-[500px] md:w-[620px] flex items-center pointer-events-none">
-
+                        <div className="relative w-full max-w-[380px] sm:max-w-[450px] md:max-w-[620px] mx-auto">
 
                             <AnimatePresence mode="wait">
                                 <motion.div
@@ -80,15 +71,13 @@ export default function Reviews() {
                                     initial={{ opacity: 0, x: 30 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: -30 }}
-                                    transition={{ duration: 0.28, ease: "easeOut" }}
+                                    transition={{ duration: 0.28, ease: easeOut }}
                                     className="
-          bg-[#13121C]/70 backdrop-blur-xl
-          border border-[#20202A]
-          rounded-3xl shadow-xl
-          px-7 py-6 min-w-[400px] w-full
-          pointer-events-auto
-          z-10
-        "
+                                bg-[#13121C]/70 backdrop-blur-xl
+                                border border-[#20202A]
+                                rounded-3xl shadow-xl
+                                px-6 py-6 w-full
+                            "
                                 >
                                     <div className="flex items-center gap-4 mb-4">
                                         <div className="w-12 h-12 rounded-full overflow-hidden">
@@ -101,34 +90,55 @@ export default function Reviews() {
                                             />
                                         </div>
 
-                                        <span className="text-md font-semibold text-white">
+                                        <span className="text-sm sm:text-md font-semibold text-white">
                                             {reviews[index].author}
                                         </span>
                                     </div>
 
-                                    <p className="text-neutral-300 text-sm leading-relaxed">
+                                    <p className="text-neutral-300 text-sm leading-relaxed sm:text-[15px]">
                                         {reviews[index].text}
                                     </p>
                                 </motion.div>
                             </AnimatePresence>
-
                         </div>
 
-                        {/* RIGHT ARROW */}
-                        <button
-                            onClick={next}
-                            className="ml-6 px-3 py-2 rounded-full bg-[#1A1A24] hover:bg-[#23232E] transition text-neutral-300 hover:text-white z-20"
-                        >
-                            ▶
-                        </button>
+                        {/* MOBILE ARROWS BELOW CARD */}
+                        <div className="flex md:hidden gap-6 mt-5">
+                            <button
+                                onClick={prev}
+                                className="px-4 py-2 rounded-full bg-[#1A1A24] hover:bg-[#23232E] transition text-neutral-300 hover:text-white"
+                            >
+                                ◀
+                            </button>
+                            <button
+                                onClick={next}
+                                className="px-4 py-2 rounded-full bg-[#1A1A24] hover:bg-[#23232E] transition text-neutral-300 hover:text-white"
+                            >
+                                ▶
+                            </button>
+                        </div>
+
+                        {/* DESKTOP ARROWS */}
+                        <div className="hidden md:flex absolute inset-0 items-center justify-between pointer-events-none">
+                            <button
+                                onClick={prev}
+                                className="pointer-events-auto ml-[-3rem] px-4 py-2 rounded-full bg-[#1A1A24] hover:bg-[#23232E] transition text-neutral-300 hover:text-white"
+                            >
+                                ◀
+                            </button>
+
+                            <button
+                                onClick={next}
+                                className="pointer-events-auto mr-[-3rem] px-4 py-2 rounded-full bg-[#1A1A24] hover:bg-[#23232E] transition text-neutral-300 hover:text-white"
+                            >
+                                ▶
+                            </button>
+                        </div>
 
                     </div>
 
-
-
-
                     {/* RIGHT STATS */}
-                    <div className="text-center md:text-right space-y-6">
+                    <div className="text-center md:text-right space-y-6 order-3">
                         <div>
                             <p className="text-[#6C63FF] font-extrabold text-3xl">400+</p>
                             <p className="text-neutral-400 text-sm">Completely different niches</p>

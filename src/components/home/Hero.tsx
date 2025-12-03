@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import PrimaryButton from "./PrimaryButton";
-import { motion } from "framer-motion";
+import { easeOut, motion } from "framer-motion";
 import { useRef } from "react";
 
 export default function Hero() {
@@ -11,7 +11,7 @@ export default function Hero() {
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.7, ease: "easeOut" }
+      transition: { duration: 0.7, ease: easeOut }
     }
   };
 
@@ -47,31 +47,7 @@ export default function Hero() {
     <section className="bg-[#0F0E17] text-white w-full overflow-hidden">
       <div className="mx-auto max-w-6xl px-6 py-16 flex flex-col lg:flex-row gap-10 items-center justify-between lg:py-20">
 
-        {/* LEFT */}
-        <motion.div
-          variants={fadeUp}
-          initial="hidden"
-          animate="visible"
-          className="max-w-xl w-full"
-        >
-          <h1 className="text-4xl font-bold leading-tight sm:text-5xl md:text-6xl">
-            <span className="block">More views.</span>
-            <span className="block bg-gradient-to-r from-[#6C63FF] to-[#00F5A0] bg-clip-text text-transparent">
-              Less burnout.
-            </span>
-          </h1>
-
-          <p className="mt-5 text-base text-neutral-300 sm:text-lg">
-            Boost your content with next-gen AI that studies real-time trends,
-            audience behavior, and channel performance to help you scale faster.
-          </p>
-
-          <div className="mt-8">
-            <PrimaryButton label="Start for free" />
-          </div>
-        </motion.div>
-
-        {/* RIGHT — FIXED FOREVER: glow inside tilt container */}
+        {/* RIGHT ON MOBILE — LEFT ON DESKTOP */}
         <motion.div
           variants={fadeUp}
           initial="hidden"
@@ -85,9 +61,10 @@ export default function Hero() {
             md:max-w-[430px]
             lg:max-w-[470px]
             xl:max-w-[520px]
+            order-1 lg:order-2
           "
         >
-          {/* 3D tilt wrapper */}
+          {/* Tilt wrapper */}
           <div
             ref={tiltRef}
             onMouseMove={handleMouseMove}
@@ -99,7 +76,7 @@ export default function Hero() {
             "
             style={{ transformStyle: "preserve-3d" }}
           >
-            {/* Glow INSIDE tilt wrapper — NEVER disappears */}
+            {/* Glow */}
             <div
               className="
                 absolute inset-0
@@ -121,6 +98,30 @@ export default function Hero() {
               priority
               className="w-full h-auto rounded-[28px] object-contain relative z-10"
             />
+          </div>
+        </motion.div>
+
+        {/* LEFT ON MOBILE — RIGHT ON DESKTOP */}
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          animate="visible"
+          className="max-w-xl w-full order-2 lg:order-1"
+        >
+          <h1 className="text-4xl font-bold leading-tight sm:text-5xl md:text-6xl">
+            <span className="block">More views.</span>
+            <span className="block bg-gradient-to-r from-[#6C63FF] to-[#00F5A0] bg-clip-text text-transparent">
+              Less burnout.
+            </span>
+          </h1>
+
+          <p className="mt-5 text-base text-neutral-300 sm:text-lg">
+            Boost your content with next-gen AI that studies real-time trends,
+            audience behavior, and channel performance to help you scale faster.
+          </p>
+
+          <div className="mt-8">
+            <PrimaryButton label="Start for free" />
           </div>
         </motion.div>
 

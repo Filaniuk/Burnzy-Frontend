@@ -1,4 +1,12 @@
-export default function IdeaCountCard({ label, count, color }) {
+export default function IdeaCountCard({
+  label,
+  count,
+  color,
+}: {
+  label: string;
+  count: number;
+  color: string;
+}) {
   return (
     <div className="bg-[#16151E] border border-[#2E2D39] rounded-xl p-6 text-center">
       <p className="text-sm text-neutral-400">{label}</p>

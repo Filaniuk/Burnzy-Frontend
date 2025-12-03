@@ -146,9 +146,8 @@ export default function CreateIdeaModal({
                     Title *
                   </label>
                   <input
-                    className={`w-full bg-[#14131C] border rounded-lg px-3 py-2 text-white outline-none focus:border-[#6C63FF] ${
-                      titleError ? "border-red-500" : "border-[#2E2D39]"
-                    }`}
+                    className={`w-full bg-[#14131C] border rounded-lg px-3 py-2 text-white outline-none focus:border-[#6C63FF] ${titleError ? "border-red-500" : "border-[#2E2D39]"
+                      }`}
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     onBlur={validateTitle}
@@ -187,10 +186,11 @@ export default function CreateIdeaModal({
                   <div className="relative">
                     <input
                       type="date"
-                      ref={(el) => (dateRef.current = el)}
-                      className={`w-full bg-[#14131C] border rounded-lg px-3 py-2 pr-10 text-white focus:border-[#6C63FF] ${
-                        dateError ? "border-red-500" : "border-[#2E2D39]"
-                      }`}
+                      ref={(el) => {
+                        dateRef.current = el;
+                      }}
+                      className={`w-full bg-[#14131C] border rounded-lg px-3 py-2 pr-10 text-white focus:border-[#6C63FF] ${dateError ? "border-red-500" : "border-[#2E2D39]"
+                        }`}
                       value={scheduledFor}
                       onChange={(e) => setScheduledFor(e.target.value)}
                     />

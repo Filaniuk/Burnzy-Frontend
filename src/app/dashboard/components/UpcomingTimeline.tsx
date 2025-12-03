@@ -6,6 +6,7 @@ import { DashboardUpcomingIdea } from "@/types/dashboard";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import CreateIdeaModal from "./CreateIdeaModal";
+import SectionTitle from "./SectionTitle";
 
 const STATUS_LABELS: Record<string, string> = {
   unassigned: "Unassigned",
@@ -94,8 +95,8 @@ export default function UpcomingTimeline({
               }}
               transition={{ duration: 0.15 }}
               className={`flex items-center justify-between bg-[#0F0E17] border border-[#2E2D39] rounded-xl px-4 py-4 mb-3 ${isManual
-                  ? "cursor-default opacity-95"
-                  : "cursor-pointer hover:border-[#6C63FF]/40 hover:shadow-[0_0_10px_#6C63FF33]"
+                ? "cursor-default opacity-95"
+                : "cursor-pointer hover:border-[#6C63FF]/40 hover:shadow-[0_0_10px_#6C63FF33]"
                 }`}
               onClick={() => {
                 if (isManual) return;

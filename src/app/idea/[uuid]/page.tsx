@@ -89,7 +89,7 @@ export default function IdeaDetailPage() {
 
     (async () => {
       try {
-        const res = await apiFetch("/api/v1/video_content_detailed", {
+        const res = await apiFetch<any>("/api/v1/video_content_detailed", {
           method: "POST",
           body: JSON.stringify({
             channel_tag: tag,
@@ -132,7 +132,7 @@ export default function IdeaDetailPage() {
     try {
       setScriptLoading(true);
 
-      const res = await apiFetch("/api/v1/video_script", {
+      const res = await apiFetch<any>("/api/v1/video_script", {
         method: "POST",
         body: JSON.stringify({
           channel_tag: tag,
@@ -172,7 +172,7 @@ export default function IdeaDetailPage() {
             We couldn’t find details for this idea. It may have expired or been removed.
           </p>
           <button
-            onClick={() => router.back()}
+            onClick={() => router.push("/dashboard")}
             className="px-5 py-2.5 rounded-xl bg-[#1B1A24] hover:bg-[#2E2D39] text-neutral-300 border border-[#2E2D39] transition-all"
           >
             ← Back
@@ -307,9 +307,9 @@ function TabButton({ label, active, onClick }: any) {
       onClick={onClick}
       className={`px-3 py-1.5 rounded-lg text-sm sm:text-base transition
       ${active
-        ? "bg-[#6C63FF]/20 text-white border border-[#6C63FF]/40"
-        : "text-neutral-400 hover:text-white hover:bg-[#1B1A24]"
-      }`}
+          ? "bg-[#6C63FF]/20 text-white border border-[#6C63FF]/40"
+          : "text-neutral-400 hover:text-white hover:bg-[#1B1A24]"
+        }`}
     >
       {label}
     </button>
@@ -328,18 +328,18 @@ function ScriptHeader({ script, loading, onGenerate }: any) {
 
       <button
         onClick={onGenerate}
-        disabled={loading}
+        disabled={loading || !!script}
         className={`px-4 py-2 rounded-xl text-sm font-medium transition
         ${loading
-          ? "bg-[#2E2D39] text-neutral-400 cursor-wait"
-          : "bg-[#6C63FF] hover:bg-[#5a54d6] text-white"
-        }`}
+            ? "bg-[#2E2D39] text-neutral-400 cursor-wait"
+            : "bg-[#6C63FF] hover:bg-[#5a54d6] text-white"
+          }`}
       >
         {loading
           ? "Generating Script…"
           : script
-          ? "Regenerate Script"
-          : "Generate Script"}
+            ? "Script Generated"
+            : "Generate Script"}
       </button>
     </div>
   );

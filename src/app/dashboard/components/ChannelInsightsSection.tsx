@@ -33,7 +33,7 @@ export default function ChannelInsightsSection({
     setLoading(true);
 
     try {
-      const json = await apiFetch("/api/v1/channel_insights", {
+      const json = await apiFetch<any>("/api/v1/channel_insights", {
         method: "POST",
         body: JSON.stringify({
           channel_tag: primary_channel.tag,

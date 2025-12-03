@@ -1,5 +1,5 @@
 import { GradientActionButton } from "@/components/GradientActionButton";
-import { motion } from "framer-motion";
+import { easeOut, motion } from "framer-motion";
 
 type AnalysisData = {
     channel_niche: string;
@@ -17,7 +17,7 @@ type AnalysisData = {
 
 const fadeUp = {
     hidden: { opacity: 0, y: 30 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: "easeOut" } },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: easeOut } },
 };
 
 export default function ReportHeader({

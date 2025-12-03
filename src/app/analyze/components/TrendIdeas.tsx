@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, easeInOut } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { apiFetch, APIError } from "@/lib/api";
 import { extractApiError } from "@/lib/errors";
@@ -141,7 +141,7 @@ export default function TrendIdeas({
         initial="enter"
         animate="center"
         exit="exit"
-        transition={{ duration: 0.35, ease: "easeInOut" }}
+        transition={{ duration: 0.35, ease: easeInOut }}
         className="relative w-full max-w-3xl mx-auto bg-[#0F0E17] rounded-2xl border border-[#2E2D39] shadow-2xl px-5 sm:px-6 py-8 sm:py-10"
       >
         {/* DESKTOP NAV */}

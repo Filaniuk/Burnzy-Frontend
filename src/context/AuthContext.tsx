@@ -13,6 +13,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  unauthorized: boolean;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -22,35 +23,39 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [unauthorized, setUnauthorized] = useState(false);
   const router = useRouter();
+  
 
   // -------------------------------------------------------------
   // REFRESH USER SESSION (uses apiFetch)
   // -------------------------------------------------------------
   const refresh = async () => {
-    setLoading(true);
+  setLoading(true);
 
-    try {
-      const res = await apiFetch<User>("/auth/me", {
-        method: "GET",
-      });
-
-      if (!res) throw new Error("Invalid response");
-
-      setUser(res);
-    } catch {
+  try {
+    const res = await apiFetch<User>("/auth/me");
+    setUser(res);
+    setUnauthorized(false);
+  } catch (err: any) {
+    if (err?.isApiError && err.status === 401) {
+      setUnauthorized(true);
       setUser(null);
-    } finally {
-      setLoading(false);
+    } else {
+      console.error("Unexpected auth refresh error:", err);
     }
-  };
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // -------------------------------------------------------------
   // LOGOUT (uses apiFetch)
   // -------------------------------------------------------------
   const logout = async () => {
     try {
-      await apiFetch("/auth/logout", {
+      await apiFetch<any>("/auth/logout", {
         method: "POST",
       });
     } catch (e) {
@@ -69,7 +74,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, logout, refresh }}>
+<AuthContext.Provider value={{ user, loading, unauthorized, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   );
