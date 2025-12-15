@@ -344,7 +344,7 @@ export default function PricingPage() {
 
       {/* Footer */}
       <footer className="text-neutral-500 text-sm mt-10 text-center">
-        Need a custom enterprise plan?{" "}
+        Have any questions or need a custom enterprise plan?{" "}
         <a
           href="mailto:contact@burnzy.co"
           className="text-[#00F5A0] hover:underline"

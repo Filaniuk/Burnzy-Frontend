@@ -267,7 +267,7 @@ export default function AnalyzePage() {
               <input
                 value={context}
                 onChange={(e) => setContext(e.target.value)}
-                placeholder="Your goal (optional, e.g. “grow a food channel”)"
+                placeholder="Your goal (optional, e.g. “Grow a food-focused channel”)"
                 className="w-full rounded-xl bg-[#1B1A24] px-4 py-3 text-white placeholder-neutral-500 border border-[#2E2D39] focus:outline-none focus:ring-1 focus:ring-[#6C63FF]"
               />
             )}

@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import CollapsibleFeatures from "./CollapsibleFeature";
-import { PLANS } from "../pricing";
+import { PLANS, PROMO_ACTIVE } from "../pricing";
 
 type Plan = (typeof PLANS)[number];
 
@@ -58,10 +58,9 @@ export default function PricingCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, delay: index * 0.1 }}
       className={`rounded-2xl p-8 flex flex-col justify-between shadow-lg border 
-        ${
-          plan.highlight
-            ? "border-[#00F5A0] bg-[#16151E]"
-            : "border-[#1F1E29] bg-[#12111A]"
+        ${plan.highlight
+          ? "border-[#00F5A0] bg-[#16151E]"
+          : "border-[#1F1E29] bg-[#12111A]"
         } hover:scale-[1.02] transition-transform`}
     >
       <div>
@@ -70,8 +69,23 @@ export default function PricingCard({
           {plan.description}
         </p>
         <div className="flex items-baseline mb-6">
-          <span className="text-4xl font-bold">${plan.price}</span>
-          <span className="text-neutral-400 ml-2">/month</span>
+          {PROMO_ACTIVE && plan.promoPrice ? (
+            <>
+              <span className="text-4xl font-bold text-[#00F5A0]">
+                ${plan.promoPrice}
+              </span>
+              <span className="text-neutral-400 ml-2">/month</span>
+
+              <span className="ml-3 line-through text-[#E30000] text-xl">
+                ${plan.price}
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="text-4xl font-bold">${plan.price}</span>
+              <span className="text-neutral-400 ml-2">/month</span>
+            </>
+          )}
         </div>
 
         <CollapsibleFeatures features={plan.features} />

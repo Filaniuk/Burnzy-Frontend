@@ -23,8 +23,25 @@ import {
 
 // Central reusable error formatter — consistent across app
 const getErrorMessage = (err: any): string => {
-  if (err instanceof APIError) return err.detail || err.message;
-  if (err?.message) return err.message;
+  if (err instanceof APIError) {
+    const detail = err.detail ?? err.message;
+
+    if (typeof detail === "string") return detail;
+
+    // FastAPI validation errors (array or object)
+    if (Array.isArray(detail)) {
+      return detail.map(d => d.msg).join(", ");
+    }
+
+    if (typeof detail === "object") {
+      return detail.msg ?? JSON.stringify(detail);
+    }
+
+    return String(detail);
+  }
+
+  if (err?.message) return String(err.message);
+
   return "Unexpected error occurred.";
 };
 
@@ -46,8 +63,8 @@ export default function CalendarPage() {
 
   const [loading, setLoading] = useState(true);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<() => void>(() => {});
-  const [cancelAction, setCancelAction] = useState<() => void>(() => {});
+  const [confirmAction, setConfirmAction] = useState<() => void>(() => { });
+  const [cancelAction, setCancelAction] = useState<() => void>(() => { });
   const [confirmMessage, setConfirmMessage] = useState({
     title: "",
     description: "",

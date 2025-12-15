@@ -1,59 +1,77 @@
+export const PROMO_ACTIVE = true;
+
 export const PLANS = [
+  // -----------------------------
+  // FREE PLAN
+  // -----------------------------
   {
     name: "Free",
     price: 0,
-    description: "Perfect to try out the platform with limited monthly access.",
+    promoPrice: 0,
+    description: "Perfect to try out Burnzy with limited monthly access.",
     features: [
-      "2 Topic Analyses / month",
-      "2 Channel Analyses / month",
-      "2 Channel Insights reports / month",
-      "2 Trend Idea generations / month",
-      "3 Content Plans / month",
-      "5 Thumbnail generations / month",
-      "2 Detailed Video Breakdowns / month",
-      "Community support",
+      "3 Topic Analyses / month",
+      "3 Channel Analyses / month",
+      "3 Channel Insights reports / month",
+      "4 Trend Idea generations / month",
+      "4 Content Plans / month",
+      "4 Detailed Video Breakdowns / month",
+      "4 AI Video Scripts / month",
+      "6 Thumbnail generations / month",
+      "Basic community support",
     ],
     buttonText: "Start for Free",
     highlight: false,
   },
 
+  // -----------------------------
+  // PRO PLAN
+  // -----------------------------
   {
     name: "Pro",
-    price: 19,
+    price: 34.99,          
+    promoPrice: 14.99,     
     description:
-      "For creators and marketers who need consistent AI content support.",
+      "For creators & marketers producing content consistently.",
     features: [
-      "50 Topic Analyses / month",
+      "20 Topic Analyses / month",
       "50 Channel Analyses / month",
-      "100 Channel Insights reports / month",
-      "50 Trend Ideas generations / month",
+      "70 Channel Insights reports / month",
+      "50 Trend Idea generations / month",
       "50 Content Plans / month",
-      "100 Thumbnail generations / month",
       "50 Detailed Video Breakdowns / month",
+      "50 AI Video Scripts / month",
+      "100 Thumbnail generations / month",
+      "Faster processing priority",
       "Access to all AI features",
-      "Fast priority processing",
       "Email support",
     ],
     buttonText: "Upgrade to Pro",
     highlight: true,
   },
 
+  // -----------------------------
+  // BUSINESS PLAN
+  // -----------------------------
   {
     name: "Business",
-    price: 99,
+    price: 149.99,         
+    promoPrice: 84.99,     
     description:
-      "For agencies and teams needing high-volume AI content at scale.",
+      "For agencies, production teams, and businesses scaling content output.",
     features: [
-      "500 Topic Analyses / month",
-      "500 Channel Analyses / month",
-      "1000 Channel Insights / month",
-      "500 Trend Ideas generations / month",
-      "500 Content Plans / month",
-      "1000 Thumbnail generations / month",
-      "500 Detailed Video Breakdowns / month",
-      "Unlimited team usage & collaboration",
-      "Advanced reporting tools",
-      "Dedicated support manager",
+      "120 Topic Analyses / month",
+      "300 Channel Analyses / month",
+      "420 Channel Insights reports / month",
+      "300 Trend Idea generations / month",
+      "300 Content Plans / month",
+      "300 Detailed Video Breakdowns / month",
+      "300 AI Video Scripts / month",
+      "600 Thumbnail generations / month",
+      "Highest processing priority",
+      "Advanced analytics & reporting",
+      "Dedicated account manager",
+      "Priority support",
     ],
     buttonText: "Upgrade to Business",
     highlight: false,
