@@ -75,7 +75,7 @@ export default function TrendIdeasManager({
           </h2>
 
           <PurpleActionButton
-            label="Generate 5 More"
+            label="Generate More"
             onClick={generateMore}
             loading={loadingMore}
             size="md"

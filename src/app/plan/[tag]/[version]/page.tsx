@@ -15,8 +15,8 @@ import { PurpleActionButton } from "@/components/PurpleActionButton";
 export default function ContentPlanPage() {
   const params = useParams();
   const searchParams = useSearchParams();
-    const router = useRouter();
-  
+  const router = useRouter();
+
   const tag = decodeURIComponent(params.tag as string);
   const version = params.version ? Number(params.version) : 1;
   const uploadsPerWeek = Number(searchParams.get("uploads") || 2);
@@ -177,13 +177,17 @@ export default function ContentPlanPage() {
         <ContentPlanHeader plan={plan} />
 
         {/* IMPORT BUTTON */}
-        <div className="flex justify-center">
+        <div className="flex flex-col items-center gap-2">
           <PurpleActionButton
             label="📅 Import Plan To Calendar"
             size="lg"
             onClick={() => setConfirmImport(true)}
           />
+          <p className="text-sm text-neutral-400">
+            (You can remove or hide ideas later in your calendar)
+          </p>
         </div>
+
 
         {/* WEEKLY PLAN */}
         <section className="space-y-10">

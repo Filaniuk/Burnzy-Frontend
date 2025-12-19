@@ -30,6 +30,19 @@ export default function TrendIdeasDashboard({
     return err.detail || err.message || "Unexpected error occurred.";
   };
 
+  function isValidIdea(idea: any): boolean {
+    return (
+      idea &&
+      typeof idea.title === "string" &&
+      idea.title.trim() &&
+      typeof idea.thumbnail_mockup_text === "string" &&
+      typeof idea.why_this_idea === "string" &&
+      idea.why_this_idea.trim() &&
+      typeof idea.trend_score === "number"
+    );
+  }
+
+
   const variants = {
     enter: (dir: "left" | "right") => ({
       x: dir === "right" ? 60 : -60,
@@ -43,15 +56,18 @@ export default function TrendIdeasDashboard({
       scale: 0.97,
     }),
   };
+  const validIdeas = ideas.filter(isValidIdea);
 
-  if (!ideas.length)
+  if (!validIdeas.length)
     return (
       <div className="text-center text-neutral-500 mt-6">
         No trend ideas found.
       </div>
     );
 
-  const idea = ideas[currentIndex];
+  const safeIndex = Math.min(currentIndex, validIdeas.length - 1);
+  const idea = validIdeas[safeIndex];
+
 
   const imageUrl = idea.mocked_thumbnail_url
     ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/mocked-thumbnails/${idea.mocked_thumbnail_url}`
@@ -87,12 +103,12 @@ export default function TrendIdeasDashboard({
 
   const nextIdea = () => {
     setDirection("right");
-    setCurrentIndex((prev) => (prev + 1) % ideas.length);
+    setCurrentIndex((prev) => (prev + 1) % validIdeas.length);
   };
 
   const prevIdea = () => {
     setDirection("left");
-    setCurrentIndex((prev) => (prev - 1 + ideas.length) % ideas.length);
+    setCurrentIndex((prev) => (prev - 1 + validIdeas.length) % validIdeas.length);
   };
 
   return (
@@ -190,7 +206,7 @@ export default function TrendIdeasDashboard({
               </div>
 
               <div className="mt-4 text-neutral-500 text-sm md:hidden">
-                {currentIndex + 1} / {ideas.length}
+                {currentIndex + 1} / {validIdeas.length}
               </div>
             </div>
           </div>

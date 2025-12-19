@@ -169,7 +169,7 @@ export default function AnalyzePage() {
             transition={{ duration: 0.6 }}
             className="text-4xl sm:text-5xl font-bold mb-10 text-center bg-gradient-to-r from-[#6C63FF] to-[#00F5A0] bg-clip-text text-transparent"
           >
-            {queryTag ? "Saved Analysis" : "AI YouTube Strategist"}
+            {queryTag ? "Saved Analysis" : "YouTube Content Strategist"}
           </motion.h1>
 
           <div className="text-center mt-10">
@@ -206,7 +206,7 @@ export default function AnalyzePage() {
       >
         <div className="text-center mb-10">
           <h1 className="text-4xl sm:text-5xl font-bold mb-4 bg-gradient-to-r from-[#6C63FF] to-[#00F5A0] bg-clip-text text-transparent">
-            AI YouTube Strategist
+            YouTube Content Strategist
           </h1>
           <p className="text-neutral-400 max-w-lg mx-auto">
             Analyze a YouTube channel or research a new content topic.

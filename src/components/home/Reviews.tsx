@@ -8,7 +8,7 @@ export default function Reviews() {
     const reviews = [
         {
             id: 1,
-            text: "This AI helped me plan my content 10x faster. I literally cut planning time from 2 hours to 10 minutes.",
+            text: "Burnzy helped me plan my content 10x faster. I literally cut planning time from 2 hours to 10 minutes.",
             author: "Daniel Kim",
             avatar: "/person1.jpg",
         },
@@ -20,7 +20,7 @@ export default function Reviews() {
         },
         {
             id: 3,
-            text: "Content burnout used to be real — this tool actually fixed that for me.",
+            text: "Content burnout used to be real, this tool actually fixed that for me",
             author: "Liam Carter",
             avatar: "/person3.jpg",
         },

@@ -32,6 +32,7 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardOverviewResponse | null>(null);
   const [loadingData, setLoadingData] = useState(true);
   const [showPlanModal, setShowPlanModal] = useState(false);
+  const [noChannelModalOpen, setNoChannelModalOpen] = useState(false);
 
   // Error modal
   const [errorOpen, setErrorOpen] = useState(false);
@@ -186,7 +187,13 @@ export default function DashboardPage() {
               icon={<Calendar size={36} className="text-[#6C63FF]" />}
               title="Content Plan"
               desc="Get your unique trendy upload plan"
-              onClick={() => setShowPlanModal(true)}
+              onClick={() => {
+                if (!primary_channel) {
+                  setNoChannelModalOpen(true);
+                  return;
+                }
+                setShowPlanModal(true);
+              }}
             />
 
             <ActionButton
@@ -316,8 +323,9 @@ export default function DashboardPage() {
           </>)}
         </motion.div>
 
-        {showPlanModal && primary_channel && (
+        {showPlanModal && (
           <DashboardPlanModal
+            open={showPlanModal}
             channel={primary_channel}
             onClose={() => setShowPlanModal(false)}
           />
@@ -334,6 +342,19 @@ export default function DashboardPage() {
         onConfirm={() => setErrorOpen(false)}
         onCancel={() => setErrorOpen(false)}
       />
+
+      <ConfirmModal
+        show={noChannelModalOpen}
+        title="Add primary channel first"
+        description="You need to analyze a channel or a topic before generating a content plan."
+        confirmText="Analyze"
+        onConfirm={() => {
+          setNoChannelModalOpen(false);
+          router.push("/analyze");
+        }}
+        onCancel={() => setNoChannelModalOpen(false)}
+      />
+
     </>
   );
 }

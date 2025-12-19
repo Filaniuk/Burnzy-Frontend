@@ -42,6 +42,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       },
     });
   } catch (err) {
+    console.log(err)
     // Network / CORS / DNS errors never hit res.ok
     throw new APIError("Network error. Please check your connection and try again.", {
       status: 0,
@@ -50,7 +51,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       path,
     });
   }
-
+  console.log(res)
   // Non-2xx HTTP statuses
   if (!res.ok) {
     let raw: any = null;
