@@ -20,6 +20,11 @@ export interface NicheProbeVideo {
   channel: string;
   published_at: string; // RFC3339 string from YouTube (e.g., 2025-12-18T10:00:00Z)
   view_count: number;
+  thumbnails: {
+    default: string,
+    medium: string,
+    standard: string
+  }
 }
 
 export interface NicheMetrics {

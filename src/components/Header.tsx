@@ -6,6 +6,7 @@ import { Menu, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import AccountMenu from "./AccountMenu";
+import FeaturesMenu from "./FeaturesMenu";
 
 export function Header() {
   const { user, loading, logout } = useAuth();
@@ -26,14 +27,12 @@ export function Header() {
     );
   }
 
-
   // --- Animation variants ---
   const menuVariants = {
     hidden: { opacity: 0, y: -10 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.25 } },
     exit: { opacity: 0, y: -10, transition: { duration: 0.2 } },
   };
-
 
   return (
     <header className="sticky top-0 z-40 w-full bg-[#0F0E17]/80 backdrop-blur-lg border-b border-[#1D1C26]">
@@ -45,10 +44,7 @@ export function Header() {
             alt="Burnzy Logo"
             className="h-9 w-auto max-w-[120px] object-contain transition-transform group-hover:scale-105"
           />
-
-
         </Link>
-
 
         {/* --- Desktop Navigation --- */}
         <nav className="hidden md:flex items-center gap-6 text-sm text-neutral-300">
@@ -57,43 +53,47 @@ export function Header() {
               <Link
                 href="/login"
                 className="
-    rounded-xl font-semibold shadow-lg
-    bg-gradient-to-r from-[#00F5A0] to-[#6C63FF]
-    text-black flex items-center justify-center gap-2
-    px-4 py-2 text-sm
-    transition-all duration-200
-    hover:shadow-[0_0_18px_rgba(0,245,160,0.45)]
-    hover:-translate-y-[2px]
-    active:translate-y-[0px]
-  "
+                  rounded-xl font-semibold shadow-lg
+                  bg-gradient-to-r from-[#00F5A0] to-[#6C63FF]
+                  text-black flex items-center justify-center gap-2
+                  px-4 py-2 text-sm
+                  transition-all duration-200
+                  hover:shadow-[0_0_18px_rgba(0,245,160,0.45)]
+                  hover:-translate-y-[2px]
+                  active:translate-y-[0px]
+                "
               >
                 Try for free 🚀
               </Link>
+
               <Link href="/dashboard" className="hover:text-[#00F5A0] transition">
                 Dashboard
               </Link>
+
+              <FeaturesMenu />
+
               <Link href="/history" className="hover:text-[#00F5A0] transition">
                 History
               </Link>
+
               <Link href="/pricing" className="hover:text-[#00F5A0] transition">
                 Pricing
               </Link>
-
             </>
           ) : (
             <>
               <Link
                 href="/analyze"
                 className="
-    rounded-xl font-semibold shadow-lg
-    bg-gradient-to-r from-[#00F5A0] to-[#6C63FF]
-    text-black flex items-center justify-center gap-2
-    px-4 py-2 text-sm
-    transition-all duration-200
-    hover:shadow-[0_0_18px_rgba(0,245,160,0.45)]
-    hover:-translate-y-[2px]
-    active:translate-y-[0px]
-  "
+                  rounded-xl font-semibold shadow-lg
+                  bg-gradient-to-r from-[#00F5A0] to-[#6C63FF]
+                  text-black flex items-center justify-center gap-2
+                  px-4 py-2 text-sm
+                  transition-all duration-200
+                  hover:shadow-[0_0_18px_rgba(0,245,160,0.45)]
+                  hover:-translate-y-[2px]
+                  active:translate-y-[0px]
+                "
               >
                 Analyze 🚀
               </Link>
@@ -101,12 +101,17 @@ export function Header() {
               <Link href="/dashboard" className="hover:text-[#00F5A0] transition">
                 Dashboard
               </Link>
+
+              <FeaturesMenu />
+
               <Link href="/history" className="hover:text-[#00F5A0] transition">
                 History
               </Link>
+
               <Link href="/pricing" className="hover:text-[#00F5A0] transition">
                 Pricing
               </Link>
+
               <AccountMenu />
             </>
           )}
@@ -143,6 +148,7 @@ export function Header() {
                   >
                     Try for free
                   </Link>
+
                   <Link
                     href="/dashboard"
                     className="hover:text-[#00F5A0]"
@@ -150,6 +156,26 @@ export function Header() {
                   >
                     Dashboard
                   </Link>
+
+                  {/* Mobile Features list (consistent with desktop dropdown) */}
+                  <div className="pt-2 border-t border-[#1D1C26] mt-1">
+                    <div className="text-xs uppercase tracking-wide text-white/50 mb-2">Features</div>
+                    <Link
+                      href="/keywords"
+                      className="mt-2 block rounded-xl border border-white/10 bg-white/5 px-4 py-3 hover:bg-white/10 hover:text-white transition"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Keyword analyzer
+                    </Link>
+                    <Link
+                      href="/thumbnails"
+                      className="block rounded-xl border border-white/10 bg-white/5 px-4 py-3 hover:bg-white/10 hover:text-white transition"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Thumbnail
+                    </Link>
+                  </div>
+
                   <Link
                     href="/history"
                     className="hover:text-[#00F5A0]"
@@ -157,6 +183,7 @@ export function Header() {
                   >
                     History
                   </Link>
+
                   <Link
                     href="/pricing"
                     className="hover:text-[#00F5A0]"
@@ -164,7 +191,6 @@ export function Header() {
                   >
                     Pricing
                   </Link>
-
                 </>
               ) : (
                 <>
@@ -175,6 +201,7 @@ export function Header() {
                   >
                     Analyze 🚀
                   </Link>
+
                   <Link
                     href="/dashboard"
                     className="hover:text-[#00F5A0]"
@@ -182,6 +209,26 @@ export function Header() {
                   >
                     Dashboard
                   </Link>
+
+                  {/* Mobile Features list (consistent with desktop dropdown) */}
+                  <div className="pt-2 border-t border-[#1D1C26] mt-1">
+                    <div className="text-xs uppercase tracking-wide text-white/50 mb-2">Features</div>
+                    <Link
+                      href="/keywords"
+                      className="mt-2 block rounded-xl border border-white/10 bg-white/5 px-4 py-3 hover:bg-white/10 hover:text-white transition"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Keyword analyzer
+                    </Link>
+                    <Link
+                      href="/thumbnails"
+                      className="block rounded-xl border border-white/10 bg-white/5 px-4 py-3 hover:bg-white/10 hover:text-white transition"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Thumbnail
+                    </Link>
+                  </div>
+
                   <Link
                     href="/history"
                     className="hover:text-[#00F5A0]"
@@ -189,6 +236,7 @@ export function Header() {
                   >
                     History
                   </Link>
+
                   <Link
                     href="/pricing"
                     className="hover:text-[#00F5A0]"
@@ -196,6 +244,7 @@ export function Header() {
                   >
                     Pricing
                   </Link>
+
                   <Link
                     href="/legal"
                     className="hover:text-[#00F5A0]"
@@ -205,9 +254,7 @@ export function Header() {
                   </Link>
 
                   <div className="flex flex-col gap-3 pt-2 border-t border-[#1D1C26] mt-2">
-                    <span className="text-center text-[#00F5A0] font-semibold">
-                      {user.email}
-                    </span>
+                    <span className="text-center text-[#00F5A0] font-semibold">{user.email}</span>
 
                     <button
                       onClick={() => {
@@ -219,7 +266,6 @@ export function Header() {
                       Logout
                     </button>
                   </div>
-
                 </>
               )}
             </div>

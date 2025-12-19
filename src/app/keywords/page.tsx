@@ -7,7 +7,7 @@ import ConfirmModal from "@/app/pricing/components/ConfirmModal";
 import LoadingAnalysis from "@/components/LoadingAnalysis";
 import { apiFetch, type APIError } from "@/lib/api";
 import { extractApiError } from '@/lib/errors'
-import type { NicheAnalysisData } from "@/types/niche";
+import type { NicheAnalysisData } from "@/types/keywords";
 
 import NicheHero from "./components/NicheHero";
 import NicheInputCard from "./components/NicheInputCard";
@@ -30,25 +30,25 @@ export default function NichePage() {
   const [result, setResult] = useState<NicheApiResponse | null>(null);
   const [meta, setMeta] = useState<NicheApiResponse["meta"] | null>(null);
   const [data, setData] = useState<NicheApiResponse["data"] | null>(null);
-  const [errorMessage, setErrorMessage] = useState<any>();
 
   const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [feedback, setFeedback] = useState<{ title: string; message: string }>({
+  const [feedback, setFeedback] = useState<{ title: string; message: string, color: string }>({
     title: "",
     message: "",
+    color: "green"
   });
 
   const canSubmit = useMemo(() => keyword.trim().length >= 2, [keyword]);
 
-  const openFeedback = useCallback((title: string, message: string) => {
-    setFeedback({ title, message });
+  const openFeedback = useCallback((title: string, message: string, color:string) => {
+    setFeedback({ title, message, color });
     setFeedbackOpen(true);
   }, []);
 
   const submit = useCallback(async () => {
     const kw = keyword.trim();
     if (kw.length < 2) {
-      openFeedback("Invalid keyword", "Please enter a keyword with at least 2 characters.");
+      openFeedback("Invalid keyword", "Please enter a keyword with at least 2 characters.", "red");
       return;
     }
 
@@ -63,10 +63,9 @@ export default function NichePage() {
       setResult(res);
       setData(res.data);
       setMeta(res.meta);
-
     } catch (err) {
       const msg = extractApiError(err);
-      setErrorMessage(msg);
+      openFeedback("Keyword analysis failed", msg, "red")
     } finally {
       setLoading(false);
     }
@@ -110,6 +109,7 @@ export default function NichePage() {
       <ConfirmModal
         show={feedbackOpen}
         title={feedback.title}
+        confirmColor={feedback.color}
         description={feedback.message}
         onCancel={() => setFeedbackOpen(false)}
         onConfirm={() => setFeedbackOpen(false)}

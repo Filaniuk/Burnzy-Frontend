@@ -1,6 +1,6 @@
 "use client";
 
-import type { NicheAnalysisData } from "@/types/niche";
+import type { NicheAnalysisData } from "@/types/keywords";
 
 type Props = {
   data: NicheAnalysisData;
@@ -55,7 +55,7 @@ export default function NicheScoreCard({ data }: Props) {
 
       <div className="mt-5 grid grid-cols-2 gap-3">
         <Stat
-          label="Avg views / video"
+          label="Avg views / video (21d)"
           value={formatInt(data.avg_video_views)}
           hint={data.metric_notes?.demand}
         />

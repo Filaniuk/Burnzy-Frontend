@@ -28,6 +28,8 @@ export function Footer() {
             <nav className="flex flex-col gap-2 text-sm text-neutral-400">
               <Link href="/analyze" className="hover:text-[#00F5A0] transition">Analyze</Link>
               <Link href="/dashboard" className="hover:text-[#00F5A0] transition">Dashboard</Link>
+              <Link href="/keywords" className="hover:text-[#00F5A0] transition">Keywords</Link>
+              <Link href="/thumbnails" className="hover:text-[#00F5A0] transition">Thumbnails</Link>
               <Link href="/history" className="hover:text-[#00F5A0] transition">History</Link>
               <Link href="/pricing" className="hover:text-[#00F5A0] transition">Pricing</Link>
               <Link href="/legal" className="hover:text-[#00F5A0] transition">Legal</Link>

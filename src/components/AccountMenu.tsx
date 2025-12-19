@@ -17,7 +17,7 @@ export default function AccountMenu() {
         className="flex items-center gap-1 text-[#00F5A0] font-medium hover:opacity-80"
       >
         {user.email}
-        <ChevronDown size={16} />
+        <ChevronDown size={16} className={`transition ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (

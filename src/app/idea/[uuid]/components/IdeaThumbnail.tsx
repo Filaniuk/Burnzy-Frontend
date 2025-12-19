@@ -4,8 +4,13 @@ import { RefreshCw } from "lucide-react";
 import ConfirmModal from "@/app/pricing/components/ConfirmModal";
 import { apiFetch } from "@/lib/api";
 
-type GenerateThumbnailResponse = { data: { image_url: string } };
-
+type GenerateThumbnailResponse = {
+  data: {
+    thumbnail_url?: string; // new backend field
+    storage_url?: string;   // in case backend uses this name
+    image_url?: string;     // legacy compatibility
+  };
+};
 export default function IdeaThumbnail({ v, ideaUuid }: any) {
   const [thumbLoading, setThumbLoading] = useState(false);
   const [newThumbnail, setNewThumbnail] = useState<string | null>(null);
@@ -31,12 +36,26 @@ export default function IdeaThumbnail({ v, ideaUuid }: any) {
         method: "POST",
       })) as GenerateThumbnailResponse;
 
-      // Preload image for smooth transition
-      const img = new Image();
-      img.src = res.data.image_url;
-      await img.decode();
+      const url =
+        res?.data?.thumbnail_url ||
+        res?.data?.storage_url ||
+        res?.data?.image_url;
 
-      setNewThumbnail(res.data.image_url);
+      if (!url) {
+        throw new Error("API did not return thumbnail URL.");
+      }
+
+      // Update UI immediately (don’t block on preload)
+      setNewThumbnail(url);
+
+      // Best-effort preload (never throw the whole flow)
+      try {
+        const img = new Image();
+        img.src = url;
+        await img.decode();
+      } catch {
+        // Ignore preload errors; the <img> tag will still load naturally
+      }
     } catch (err: any) {
       setModal({
         show: true,
@@ -61,13 +80,11 @@ export default function IdeaThumbnail({ v, ideaUuid }: any) {
             <img
               src={finalThumb}
               alt="Generated thumbnail"
-              className={`w-full object-cover transition-all duration-500 ${
-                thumbLoading ? "opacity-70 blur-md" : ""
-              } ${
-                !newThumbnail && baseImageUrl
+              className={`w-full object-cover transition-all duration-500 ${thumbLoading ? "opacity-70 blur-md" : ""
+                } ${!newThumbnail && baseImageUrl
                   ? "blur-md brightness-75 scale-[1.02]"
                   : "blur-0"
-              }`}
+                }`}
             />
           ) : (
             <div className="flex items-center justify-center h-64 bg-[#1B1A24] text-neutral-500">

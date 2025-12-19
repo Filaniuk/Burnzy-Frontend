@@ -202,7 +202,7 @@ export default function AnalysisReport({ data, type }: Props) {
           className="mt-10 text-center text-neutral-500 text-sm"
         >
           Generated with{" "}
-          <span className="text-[#00F5A0]">AI Channel Engine</span>
+          <span className="text-[#00F5A0]">Burnzy</span>
         </motion.div>
       </motion.div>
 
