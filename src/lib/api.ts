@@ -36,10 +36,18 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     res = await fetch(`${base}${path}`, {
       ...init,
       credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        ...(init?.headers || {}),
-      },
+      headers: (() => {
+        const isFormData =
+          typeof FormData !== "undefined" && init?.body instanceof FormData;
+        if (isFormData) {
+          // Let the browser set multipart boundaries for FormData
+          return { ...(init?.headers || {}) };
+        }
+        return {
+          "Content-Type": "application/json",
+          ...(init?.headers || {}),
+        };
+      })(),
     });
   } catch (err) {
     // Network / CORS / DNS errors never hit res.ok

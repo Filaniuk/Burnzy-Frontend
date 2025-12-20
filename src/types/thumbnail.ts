@@ -12,6 +12,9 @@ export interface GeneratedThumbnail {
   status: ThumbnailStatus;
   error_message?: string | null;
 
+  parent_id?: string | null;
+  operation?: string | null;
+
   storage_url?: string | null;
   mime_type?: string | null;
   width?: number | null;

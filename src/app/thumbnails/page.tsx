@@ -15,13 +15,11 @@ import LoadingThumbnails from "./components/LoadingThumbnails";
 import type { GeneratedThumbnail, ThumbnailsListResponse } from "@/types/thumbnail";
 
 type GenerateThumbnailResponse = {
-  status: string;
-  message: string;
-  data: {
+  status?: string;
+  message?: string;
+  data?: {
     thumbnail_url?: string;
     thumbnail_id?: string;
-    version?: number;
-    created_at?: string;
   };
 };
 
@@ -42,10 +40,7 @@ export default function ThumbnailsPage() {
   const fetchList = useCallback(async () => {
     try {
       setLoading(true);
-      const qs = new URLSearchParams();
-      qs.set("limit", "60");
-      qs.set("offset", "0");
-
+      const qs = new URLSearchParams({ limit: "60", offset: "0" });
       const res = (await apiFetch<ThumbnailsListResponse>(`/api/v1/thumbnails?${qs.toString()}`)) as any;
       setItems(res.data || []);
     } catch (err: any) {
@@ -68,7 +63,6 @@ export default function ThumbnailsPage() {
     async (ideaUuid: string) => {
       try {
         setGenerating(true);
-
         await apiFetch<GenerateThumbnailResponse>(`/api/v1/generate_thumbnail/${ideaUuid}`, {
           method: "POST",
         });
@@ -107,16 +101,18 @@ export default function ThumbnailsPage() {
 
         <ThumbnailGenerateCard onGenerate={onGenerate} loading={generating} />
 
-        {loading ? <LoadingThumbnails /> : <ThumbnailsGrid items={items} />}
+        {loading ? <LoadingThumbnails /> : <ThumbnailsGrid items={items} onMutate={fetchList} />}
       </motion.main>
 
       <ConfirmModal
-        show={modal.show}
-        title={modal.title}
-        description={modal.description}
-        onCancel={closeModal}
-        onConfirm={closeModal}
-        confirmColor={modal.color} confirmText={"Ok"}      />
+  show={modal.show}
+  title={modal.title}
+  description={modal.description}
+  onCancel={closeModal}
+  onConfirm={closeModal}
+  confirmText="OK"
+  confirmColor={modal.color}
+/>
     </>
   );
 }

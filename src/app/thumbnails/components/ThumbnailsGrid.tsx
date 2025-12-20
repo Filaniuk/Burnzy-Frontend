@@ -1,7 +1,13 @@
 import type { GeneratedThumbnail } from "@/types/thumbnail";
 import ThumbnailCard from "./ThumbnailCard";
 
-export default function ThumbnailsGrid({ items }: { items: GeneratedThumbnail[] }) {
+export default function ThumbnailsGrid({
+  items,
+  onMutate,
+}: {
+  items: GeneratedThumbnail[];
+  onMutate?: () => Promise<void> | void;
+}) {
   if (!items.length) {
     return (
       <section className="rounded-3xl border border-[#2E2D39] bg-[#1B1A24] p-8 text-center">
@@ -16,7 +22,7 @@ export default function ThumbnailsGrid({ items }: { items: GeneratedThumbnail[] 
   return (
     <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
       {items.map((t) => (
-        <ThumbnailCard key={t.id} item={t} />
+        <ThumbnailCard key={t.id} item={t} onMutate={onMutate} />
       ))}
     </section>
   );

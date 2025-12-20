@@ -49,9 +49,6 @@ export default function ThumbnailGenerateCard({ onGenerate, loading }: Props) {
             </button>
           </div>
 
-          <p className="mt-3 text-xs text-neutral-400">
-            Tip: Thumbnails are persisted on the backend and served from <span className="text-neutral-200">/thumbnails-media</span> as a stable URL.
-          </p>
         </div>
       </div>
     </section>
