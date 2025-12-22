@@ -215,10 +215,17 @@ const ThumbnailMaskEditor = forwardRef<ThumbnailMaskEditorHandle, Props>(
         if (!naturalW || !naturalH) return;
 
         // Internal mask resolution = original image resolution
-        overlayC.width = naturalW;
-        overlayC.height = naturalH;
-        maskC.width = naturalW;
-        maskC.height = naturalH;
+
+        if (overlayC) {
+          overlayC.width = naturalW;
+          overlayC.height = naturalH;
+        }
+
+
+        if (maskC) {
+          maskC.width = naturalW;
+          maskC.height = naturalH;
+        }
 
         // Compute how big we can show it on screen while respecting maxWidth/maxHeight
         const maxW = maxWidth ?? naturalW;
