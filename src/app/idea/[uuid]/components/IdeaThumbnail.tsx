@@ -3,12 +3,13 @@ import { useState } from "react";
 import { RefreshCw } from "lucide-react";
 import ConfirmModal from "@/app/pricing/components/ConfirmModal";
 import { apiFetch } from "@/lib/api";
+import { PurpleActionButton } from "@/components/PurpleActionButton";
 
 type GenerateThumbnailResponse = {
   data: {
-    thumbnail_url?: string; // new backend field
-    storage_url?: string;   // in case backend uses this name
-    image_url?: string;     // legacy compatibility
+    thumbnail_url?: string;
+    image_url?: string;
+    thumbnail_id?: string;
   };
 };
 export default function IdeaThumbnail({ v, ideaUuid }: any) {
@@ -38,8 +39,10 @@ export default function IdeaThumbnail({ v, ideaUuid }: any) {
 
       const url =
         res?.data?.thumbnail_url ||
-        res?.data?.storage_url ||
-        res?.data?.image_url;
+        res?.data?.image_url ||
+        (res?.data?.thumbnail_id
+          ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/thumbnails/${res.data.thumbnail_id}/file`
+          : null);
 
       if (!url) {
         throw new Error("API did not return thumbnail URL.");
@@ -101,15 +104,22 @@ export default function IdeaThumbnail({ v, ideaUuid }: any) {
           </div>
         )}
 
-        {/* Generate Button */}
-        <button
-          onClick={handleGenerateThumbnail}
-          disabled={thumbLoading}
-          className="flex items-center gap-2 px-5 py-2 rounded-lg bg-gradient-to-r from-[#6C63FF] to-[#00F5A0] text-black font-semibold hover:opacity-90 transition disabled:opacity-60"
-        >
-          <RefreshCw size={18} className={thumbLoading ? "animate-spin" : ""} />
-          {thumbLoading ? "Generating..." : "Generate Thumbnail Idea"}
-        </button>
+        <div className="flex flex-row gap-4">
+          {/* Generate Button */}
+          <PurpleActionButton
+            label="Generate Thumbnail"
+            onClick={handleGenerateThumbnail}
+            loading={thumbLoading}
+            size="sm"
+          />
+          <PurpleActionButton
+            label="Open Workspace"
+            onClick={() =>
+              window.open(`/thumbnails`, `_blank`)
+            }
+            size="sm"
+          />
+        </div>
       </section>
 
       {/* Error Modal */}

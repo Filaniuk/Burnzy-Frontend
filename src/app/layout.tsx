@@ -4,6 +4,7 @@ import "../styles/globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { fontAnton, fontBebas, fontInter, fontMontserrat, fontOswald, fontRoboto } from "./fonts";
 
 export const metadata = {
   title: "Burnzy",
@@ -19,7 +20,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html
+      lang="en"
+      className={[
+        fontInter.variable,
+        fontMontserrat.variable,
+        fontRoboto.variable,
+        fontOswald.variable,
+        fontAnton.variable,
+        fontBebas.variable,
+      ].join(" ")}
+    >
       <body className="bg-[#0F0E17] text-white">
         <AuthProvider>
           <Header />

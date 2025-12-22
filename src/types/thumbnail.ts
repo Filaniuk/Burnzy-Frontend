@@ -5,7 +5,7 @@ export interface GeneratedThumbnail {
   idea_uuid: string;
   trend_id?: number | null;
 
-  title?: string | null;
+  title?: string
   thumbnail_text?: string | null;
 
   provider: string;
@@ -14,8 +14,7 @@ export interface GeneratedThumbnail {
 
   parent_id?: string | null;
   operation?: string | null;
-
-  storage_url?: string | null;
+  storage_url? : string | null;
   mime_type?: string | null;
   width?: number | null;
   height?: number | null;

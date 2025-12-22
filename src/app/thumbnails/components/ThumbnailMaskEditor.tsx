@@ -20,27 +20,42 @@ export type ThumbnailMaskEditorHandle = {
 
 type Props = {
   imageUrl: string;
-  initialBrush?: number; // px (UI)
+  initialBrush?: number; // UI px
   className?: string;
-
-  /**
-   * If true, the editor toolbar (paint/erase/brush/clear) is shown.
-   * In your modal this should be true.
-   */
   showToolbar?: boolean;
+  maxWidth?: number;
+  maxHeight?: number;
 };
 
 function clamp(n: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, n));
 }
 
+/**
+ * Two-canvas approach:
+ *  - overlayCanvas: transparent, shown to user (paint shows semi-transparent highlight)
+ *  - maskCanvas: hidden, stores strict black/white mask on white background for export
+ *
+ * The underlying image is ALWAYS visible while drawing a mask.
+ * Now scaled using maxWidth/maxHeight passed from the modal so all modes (preview, mask,
+ * text) share the same bounding box.
+ */
 const ThumbnailMaskEditor = forwardRef<ThumbnailMaskEditorHandle, Props>(
   function ThumbnailMaskEditor(
-    { imageUrl, initialBrush = 32, className = "", showToolbar = true },
+    {
+      imageUrl,
+      initialBrush = 32,
+      className = "",
+      showToolbar = true,
+      maxWidth,
+      maxHeight,
+    },
     ref
   ) {
     const imgRef = useRef<HTMLImageElement | null>(null);
-    const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
+    const maskCanvasRef = useRef<HTMLCanvasElement | null>(null);
+    const containerRef = useRef<HTMLDivElement | null>(null);
 
     const [ready, setReady] = useState(false);
     const [mode, setMode] = useState<Mode>("paint");
@@ -50,19 +65,53 @@ const ThumbnailMaskEditor = forwardRef<ThumbnailMaskEditorHandle, Props>(
     const last = useRef<{ x: number; y: number } | null>(null);
     const dirty = useRef(false);
 
-    function getCtx() {
-      const c = canvasRef.current;
+    function getOverlayCtx() {
+      const c = overlayCanvasRef.current;
       if (!c) return null;
       return c.getContext("2d");
     }
 
+    function getMaskCtx() {
+      const c = maskCanvasRef.current;
+      if (!c) return null;
+      return c.getContext("2d");
+    }
+
+    // Map pointer -> canvas coordinate space (both canvases share same dimensions)
     function toCanvasXY(e: PointerEvent | React.PointerEvent) {
-      const c = canvasRef.current;
+      const c = overlayCanvasRef.current;
       if (!c) return null;
       const rect = c.getBoundingClientRect();
       const x = ((e.clientX - rect.left) * c.width) / rect.width;
       const y = ((e.clientY - rect.top) * c.height) / rect.height;
       return { x, y };
+    }
+
+    function computeLineWidth(displayBrushPx: number) {
+      const c = overlayCanvasRef.current!;
+      const rect = c.getBoundingClientRect();
+      const scale = c.width / rect.width;
+      return Math.max(1, Math.round(displayBrushPx * scale));
+    }
+
+    function clearMask() {
+      const maskCtx = getMaskCtx();
+      const overlayCtx = getOverlayCtx();
+      const maskC = maskCanvasRef.current;
+      const overlayC = overlayCanvasRef.current;
+
+      if (!maskCtx || !overlayCtx || !maskC || !overlayC) return;
+
+      // Hidden mask: start fully WHITE (keep everything)
+      maskCtx.globalCompositeOperation = "source-over";
+      maskCtx.fillStyle = "#FFFFFF";
+      maskCtx.fillRect(0, 0, maskC.width, maskC.height);
+
+      // Visible overlay: fully TRANSPARENT (so image stays visible)
+      overlayCtx.globalCompositeOperation = "source-over";
+      overlayCtx.clearRect(0, 0, overlayC.width, overlayC.height);
+
+      dirty.current = false;
     }
 
     function strokeLine(
@@ -76,42 +125,54 @@ const ThumbnailMaskEditor = forwardRef<ThumbnailMaskEditorHandle, Props>(
       ctx.stroke();
     }
 
-    function setBrushStyle(ctx: CanvasRenderingContext2D, displayBrushPx: number) {
-      const c = canvasRef.current!;
-      const rect = c.getBoundingClientRect();
-      const scale = c.width / rect.width;
-      const lineWidth = Math.max(1, Math.round(displayBrushPx * scale));
+    function drawDot(ctx: CanvasRenderingContext2D, x: number, y: number) {
+      ctx.beginPath();
+      ctx.arc(x, y, ctx.lineWidth / 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
+    function setupOverlayBrush(ctx: CanvasRenderingContext2D, lineWidth: number) {
       ctx.lineWidth = lineWidth;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
-      ctx.strokeStyle = mode === "paint" ? "#000000" : "#FFFFFF";
+
+      if (mode === "paint") {
+        ctx.globalCompositeOperation = "source-over";
+        ctx.strokeStyle = "rgba(0,245,160,0.35)";
+        ctx.fillStyle = "rgba(0,245,160,0.35)";
+      } else {
+        ctx.globalCompositeOperation = "destination-out";
+        ctx.strokeStyle = "rgba(0,0,0,1)";
+        ctx.fillStyle = "rgba(0,0,0,1)";
+      }
     }
 
-    function clearMask() {
-      const ctx = getCtx();
-      const c = canvasRef.current;
-      if (!ctx || !c) return;
-
-      // White background = preserve everything by default
+    function setupMaskBrush(ctx: CanvasRenderingContext2D, lineWidth: number) {
+      ctx.lineWidth = lineWidth;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
       ctx.globalCompositeOperation = "source-over";
-      ctx.fillStyle = "#FFFFFF";
-      ctx.fillRect(0, 0, c.width, c.height);
 
-      dirty.current = false;
+      if (mode === "paint") {
+        ctx.strokeStyle = "#000000";
+        ctx.fillStyle = "#000000";
+      } else {
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.fillStyle = "#FFFFFF";
+      }
     }
 
     async function exportBinaryMask(): Promise<Blob> {
-      const c = canvasRef.current;
-      const ctx = getCtx();
-      if (!c || !ctx) throw new Error("Mask canvas is not ready.");
+      const c = maskCanvasRef.current;
+      const ctx = getMaskCtx();
+      if (!c || !ctx) throw new Error("Mask canvas not ready.");
 
       const imgData = ctx.getImageData(0, 0, c.width, c.height);
       const d = imgData.data;
 
-      // Threshold to strict {0,255} to remove antialias gray pixels.
+      // Force perfect black/white
       for (let i = 0; i < d.length; i += 4) {
-        const v = d[i]; // R channel
+        const v = d[i]; // R (same for G,B)
         const out = v < 128 ? 0 : 255;
         d[i] = out;
         d[i + 1] = out;
@@ -138,20 +199,36 @@ const ThumbnailMaskEditor = forwardRef<ThumbnailMaskEditorHandle, Props>(
       getMode: () => mode,
       isDirty: () => dirty.current,
     }));
+    const [displaySize, setDisplaySize] = useState<{ width: number; height: number } | null>(null);
 
-    // Initialize canvas to match the image’s natural dimensions
+    // Initialize canvases to image natural size AND compute displayed size
     useEffect(() => {
       const img = imgRef.current;
-      const c = canvasRef.current;
-      if (!img || !c) return;
+      const overlayC = overlayCanvasRef.current;
+      const maskC = maskCanvasRef.current;
+      if (!img || !overlayC || !maskC) return;
 
       function init() {
-        const w = img.naturalWidth;
-        const h = img.naturalHeight;
-        if (!w || !h) return;
+        if (!img) return;
+        const naturalW = img.naturalWidth;
+        const naturalH = img.naturalHeight;
+        if (!naturalW || !naturalH) return;
 
-        c.width = w;
-        c.height = h;
+        // Internal mask resolution = original image resolution
+        overlayC.width = naturalW;
+        overlayC.height = naturalH;
+        maskC.width = naturalW;
+        maskC.height = naturalH;
+
+        // Compute how big we can show it on screen while respecting maxWidth/maxHeight
+        const maxW = maxWidth ?? naturalW;
+        const maxH = maxHeight ?? naturalH;
+        const scale = Math.min(maxW / naturalW, maxH / naturalH, 1);
+
+        setDisplaySize({
+          width: Math.round(naturalW * scale),
+          height: Math.round(naturalH * scale),
+        });
 
         clearMask();
         setReady(true);
@@ -163,12 +240,14 @@ const ThumbnailMaskEditor = forwardRef<ThumbnailMaskEditorHandle, Props>(
       return () => {
         if (img) img.onload = null;
       };
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [imageUrl]);
+      // IMPORTANT: include maxWidth/maxHeight so it re-computes if viewport box changes
+    }, [imageUrl, maxWidth, maxHeight]);
+
 
     function onPointerDown(e: React.PointerEvent) {
-      const ctx = getCtx();
-      if (!ctx) return;
+      const overlayCtx = getOverlayCtx();
+      const maskCtx = getMaskCtx();
+      if (!overlayCtx || !maskCtx) return;
 
       (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
 
@@ -178,26 +257,34 @@ const ThumbnailMaskEditor = forwardRef<ThumbnailMaskEditorHandle, Props>(
       const p = toCanvasXY(e);
       if (!p) return;
 
-      setBrushStyle(ctx, brush);
+      const lw = computeLineWidth(brush);
+      setupOverlayBrush(overlayCtx, lw);
+      setupMaskBrush(maskCtx, lw);
+
       last.current = p;
 
-      // draw dot
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, ctx.lineWidth / 2, 0, Math.PI * 2);
-      ctx.fillStyle = mode === "paint" ? "#000000" : "#FFFFFF";
-      ctx.fill();
+      drawDot(overlayCtx, p.x, p.y);
+      drawDot(maskCtx, p.x, p.y);
     }
 
     function onPointerMove(e: React.PointerEvent) {
       if (!drawing.current) return;
-      const ctx = getCtx();
-      if (!ctx) return;
+
+      const overlayCtx = getOverlayCtx();
+      const maskCtx = getMaskCtx();
+      if (!overlayCtx || !maskCtx) return;
 
       const p = toCanvasXY(e);
       if (!p) return;
 
-      setBrushStyle(ctx, brush);
-      if (last.current) strokeLine(ctx, last.current, p);
+      const lw = computeLineWidth(brush);
+      setupOverlayBrush(overlayCtx, lw);
+      setupMaskBrush(maskCtx, lw);
+
+      if (last.current) {
+        strokeLine(overlayCtx, last.current, p);
+        strokeLine(maskCtx, last.current, p);
+      }
       last.current = p;
     }
 
@@ -205,6 +292,21 @@ const ThumbnailMaskEditor = forwardRef<ThumbnailMaskEditorHandle, Props>(
       drawing.current = false;
       last.current = null;
     }
+
+    // Container: width constrained by maxWidth, height determined by the image aspect ratio.
+    const containerStyle: React.CSSProperties = {
+      width: displaySize ? `${displaySize.width}px` : "100%",
+      height: displaySize ? `${displaySize.height}px` : "auto",
+    };
+
+    // Image: fill container fully; no separate maxHeight here
+    const imgStyle: React.CSSProperties = {
+      width: "100%",
+      height: "100%",
+      objectFit: "contain",
+      display: "block",
+    };
+
 
     return (
       <div className={["w-full", className].join(" ")}>
@@ -264,27 +366,41 @@ const ThumbnailMaskEditor = forwardRef<ThumbnailMaskEditorHandle, Props>(
           </div>
         ) : null}
 
-        <div className="relative w-full rounded-2xl border border-[#2E2D39] overflow-hidden bg-[#0F0E17]">
-          {/* Base image */}
+        <div
+          ref={containerRef}
+          className="relative mx-auto rounded-2xl border border-[#2E2D39] overflow-hidden bg-[#0F0E17]"
+          style={containerStyle}
+        >
+          {/* Base image ALWAYS visible, scaled by same rules as preview/text editor */}
           <img
             ref={imgRef}
             src={imageUrl}
             alt="Thumbnail"
-            className="w-full h-auto block select-none"
+            style={imgStyle}
+            className="select-none"
             draggable={false}
           />
 
-          {/* Overlay canvas */}
+          {/* Transparent overlay (user draws here) */}
           <canvas
-            ref={canvasRef}
-            className="absolute inset-0 w-full h-full touch-none"
+            ref={overlayCanvasRef}
+            className="absolute inset-0 touch-none"
+            style={{ width: "100%", height: "100%" }}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerUp}
             onPointerLeave={onPointerUp}
           />
+
+          {/* Hidden strict BW mask canvas (exported) */}
+          <canvas ref={maskCanvasRef} className="hidden" />
         </div>
+
+        <p className="mt-2 text-xs text-neutral-400">
+          The photo remains fully visible. Green overlay indicates the black edit region
+          in the exported mask. Size matches the main preview and text editor.
+        </p>
       </div>
     );
   }

@@ -1,166 +1,219 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Brush, Image as ImageIcon } from "lucide-react";
+import { X, UploadCloud } from "lucide-react";
 import type { GeneratedThumbnail } from "@/types/thumbnail";
 import { PurpleActionButton } from "@/components/PurpleActionButton";
+import ThumbnailMaskEditor, { ThumbnailMaskEditorHandle } from "./ThumbnailMaskEditor";
+import ThumbnailTextEditor, { ThumbnailTextEditorHandle } from "./ThumbnailTextEditor";
+import { thumbnailFileUrl } from "@/lib/thumbnails";
+import ThumbnailTextEditorS3Wrapped from "./ThumbnailTextEditorS3Wrapped";
 
-import ThumbnailMaskEditor, {
-  type ThumbnailMaskEditorHandle,
-} from "./ThumbnailMaskEditor";
-
-type EditMode = "remove_text" | "swap_face" | null;
+type Mode = null | "modify" | "swap_face" | "add_text";
 
 type Props = {
   open: boolean;
   item: GeneratedThumbnail | null;
   onClose: () => void;
 
-  /**
-   * These should call backend endpoints using FormData:
-   * - remove text: POST /api/v1/thumbnails/{id}/remove-text (mask + prompt)
-   * - swap face:   POST /api/v1/thumbnails/{id}/swap-face (mask + prompt + face_image)
-   */
-  onSwapFace: (item: GeneratedThumbnail, faceImage: File, mask: Blob, prompt: string) => Promise<void> | void;
-  onRemoveText: (item: GeneratedThumbnail, mask: Blob, prompt: string) => Promise<void> | void;
+  onModify: (item: GeneratedThumbnail, args: { mask: Blob; prompt: string }) => Promise<void> | void;
+  onSwapFace: (
+    item: GeneratedThumbnail,
+    args: { mask: Blob; faceImage: File; prompt: string }
+  ) => Promise<void> | void;
 
+  onAddText: (
+    item: GeneratedThumbnail,
+    args: { image: Blob; payload: Record<string, any> }
+  ) => Promise<void> | void;
+
+  modifyLoading?: boolean;
   swapLoading?: boolean;
-  removeLoading?: boolean;
+  addTextLoading?: boolean;
 };
 
 export default function ThumbnailEditModal({
   open,
   item,
   onClose,
+  onModify,
   onSwapFace,
-  onRemoveText,
+  onAddText,
+  modifyLoading = false,
   swapLoading = false,
-  removeLoading = false,
+  addTextLoading = false,
 }: Props) {
-  const editorRef = useRef<ThumbnailMaskEditorHandle | null>(null);
-  const faceFileRef = useRef<HTMLInputElement | null>(null);
-
+  const [mode, setMode] = useState<Mode>(null);
   const [localError, setLocalError] = useState<string | null>(null);
-  const [mode, setMode] = useState<EditMode>(null);
-
+  const { maxWidth, maxHeight } = useViewportImageBox(
+    260, // vertical padding (header + footer + body padding)
+    40   // horizontal margin
+  );
+  const maskRef = useRef<ThumbnailMaskEditorHandle | null>(null);
+  const textRef = useRef<ThumbnailTextEditorHandle | null>(null);
+  const faceFileRef = useRef<HTMLInputElement | null>(null);
   const [faceFile, setFaceFile] = useState<File | null>(null);
-  const [prompt, setPrompt] = useState<string>("");
 
-  const href = item?.storage_url || "";
-  const title = item?.title || item?.idea_uuid || "Thumbnail";
+  const [prompt, setPrompt] = useState<string>(
+    "Remove the existing content (or text) and replace it with a clean, natural continuation of the surrounding background. Use textures and lighting consistent with the surrounding area. Do not generate any readable text, words, or typographic marks inside the mask. Outside the masked region, keep the original image unchanged."
+  );
 
-  const busy = swapLoading || removeLoading;
+  function useViewportImageBox(paddingY = 220, marginX = 32) {
+  const [box, setBox] = useState({ maxWidth: 0, maxHeight: 0 });
 
-  const modeLabel = useMemo(() => {
-    if (mode === "remove_text") return "Remove text";
-    if (mode === "swap_face") return "Swap face";
-    return "";
-  }, [mode]);
+  useEffect(() => {
+    function update() {
+      if (typeof window === "undefined") return;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+
+      // Tailwind max-w-5xl = 64rem ≈ 1024px (assuming 16px root)
+      const MODAL_MAX_W = 1024;
+
+      const availableW = Math.max(0, vw - marginX);
+      const maxWidth = Math.min(availableW, MODAL_MAX_W);
+
+      const maxHeight = Math.max(0, vh - paddingY);
+
+      setBox({ maxWidth, maxHeight });
+    }
+
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, [paddingY, marginX]);
+
+  return box;
+}
+
+
+  // Reset state when opening / changing item
+  useEffect(() => {
+    if (!open) return;
+    setMode(null);
+    setLocalError(null);
+    setFaceFile(null);
+    setPrompt(
+      "Remove the existing content (or text) and replace it with a clean, natural continuation of the surrounding background. Use textures and lighting consistent with the surrounding area. Do not generate any readable text, words, or typographic marks inside the mask. Outside the masked region, keep the original image unchanged."
+    );
+  }, [open, item?.id]);
 
   useEffect(() => {
     if (!open) return;
 
-    setLocalError(null);
-    setMode(null);
-    setFaceFile(null);
-    setPrompt("");
-
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
-
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open, onClose]);
 
-  function startRemoveText() {
-    setLocalError(null);
-    setMode("remove_text");
-    setFaceFile(null);
-    setPrompt("Remove all text. Preserve the scene, subject, lighting and composition. Do not add logos or watermarks.");
-    editorRef.current?.clear();
-    editorRef.current?.setMode("paint");
-  }
+  // Use the same-origin /file proxy for editor flows to avoid CORS/canvas tainting.
+  // The public S3/CloudFront URL remains available elsewhere (e.g., external link).
+  const fileHref = item ? thumbnailFileUrl(item.id) : "";
+  const href = fileHref;
+  const title = item?.title || item?.idea_uuid || "Thumbnail";
 
-  function startSwapFace() {
-    setLocalError(null);
-    setMode("swap_face");
-    setPrompt("Replace the main subject face with the reference face. Preserve body, background, lighting, and composition. Do not add text or logos.");
-    editorRef.current?.clear();
-    editorRef.current?.setMode("paint");
-    // face file picked later
-  }
+  const busy = modifyLoading || swapLoading || addTextLoading;
 
-  function cancelMasking() {
-    setLocalError(null);
-    setMode(null);
-    setFaceFile(null);
-    setPrompt("");
-    editorRef.current?.clear();
-  }
-
-  function triggerPickFace() {
-    setLocalError(null);
+  async function applyModify() {
     if (!item) return;
-    faceFileRef.current?.click();
-  }
+    if (!href) return;
 
-  function onPickFace(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0] || null;
-    e.target.value = "";
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      setLocalError("Please select an image file (jpg/png/webp).");
-      return;
-    }
-    setFaceFile(file);
-  }
-
-  async function applyRemoveText() {
-    if (!item) return;
     try {
       setLocalError(null);
 
-      const editor = editorRef.current;
-      if (!editor) throw new Error("Mask editor not ready.");
-
-      if (!editor.isDirty()) {
-        setLocalError("Paint the region you want to edit (black) before applying.");
-        return;
+      const mask = await maskRef.current?.exportMask();
+      if (!mask) throw new Error("Mask is not ready.");
+      if (!maskRef.current?.isDirty()) {
+        throw new Error("Please paint the edit region (black) before applying.");
       }
 
-      const mask = await editor.exportMask();
-      await onRemoveText(item, mask, prompt);
-    } catch (err: any) {
-      setLocalError(err?.message || "Remove text failed.");
+      const finalPrompt =
+        prompt?.trim() ||
+        "Remove the existing content (or text) and replace it with a clean, natural continuation of the surrounding background. Use textures and lighting consistent with the surrounding area. Do not generate any readable text, words, or typographic marks inside the mask. Outside the masked region, keep the original image unchanged.";
+
+      await onModify(item, { mask, prompt: finalPrompt });
+      setMode(null);
+    } catch (e: any) {
+      setLocalError(e?.message || "Failed to apply modification.");
     }
   }
 
   async function applySwapFace() {
     if (!item) return;
+    if (!href) return;
+
     try {
       setLocalError(null);
 
-      const editor = editorRef.current;
-      if (!editor) throw new Error("Mask editor not ready.");
-
-      if (!editor.isDirty()) {
-        setLocalError("Paint the face region you want to replace (black) before applying.");
-        return;
+      const mask = await maskRef.current?.exportMask();
+      if (!mask) throw new Error("Mask is not ready.");
+      if (!maskRef.current?.isDirty()) {
+        throw new Error("Please paint the face region (black) before applying.");
       }
 
-      if (!faceFile) {
-        setLocalError("Please pick a reference face image first.");
-        return;
-      }
+      if (!faceFile) throw new Error("Please upload a reference face image.");
 
-      const mask = await editor.exportMask();
-      await onSwapFace(item, faceFile, mask, prompt);
-    } catch (err: any) {
-      setLocalError(err?.message || "Swap face failed.");
+      const swapPrompt =
+        prompt?.trim() ||
+        "Replace the face of the main subject in the image with the face from the reference image. " +
+        "Keep everything else (background, lighting, colors, composition) as close as possible to the original. " +
+        "Do not add any new text, logos, watermarks, UI elements, or branding.";
+
+      await onSwapFace(item, { mask, faceImage: faceFile, prompt: swapPrompt });
+      setMode(null);
+    } catch (e: any) {
+      setLocalError(e?.message || "Failed to apply swap face.");
     }
+  }
+
+  async function applyAddText() {
+    if (!item) return;
+    if (!href) return;
+
+    try {
+      setLocalError(null);
+
+      const editor = textRef.current;
+      if (!editor) throw new Error("Text editor is not ready.");
+
+      const blob = await editor.exportCompositedImage();
+      const payload = editor.getState();
+
+      // basic validation
+      const txt = (payload.text || "").trim();
+      if (!txt) throw new Error("Please enter some text.");
+
+      await onAddText(item, { image: blob, payload });
+      setMode(null);
+    } catch (e: any) {
+      setLocalError(e?.message || "Failed to apply add text.");
+    }
+  }
+
+  function startModify() {
+    setLocalError(null);
+    setMode("modify");
+    setPrompt(
+      "Remove the existing content (or text) and replace it with a clean, natural continuation of the surrounding background. Use textures and lighting consistent with the surrounding area. Do not generate any readable text, words, or typographic marks inside the mask. Outside the masked region, keep the original image unchanged."
+    );
+    setTimeout(() => maskRef.current?.clear(), 0);
+  }
+
+  function startSwapFace() {
+    setLocalError(null);
+    setMode("swap_face");
+    setPrompt(
+      "Replace the main subject face with the reference face. Preserve body, background, lighting, and composition. Do not add text or logos."
+    );
+    setTimeout(() => maskRef.current?.clear(), 0);
+  }
+
+  function startAddText() {
+    setLocalError(null);
+    setMode("add_text");
   }
 
   return (
@@ -174,23 +227,42 @@ export default function ThumbnailEditModal({
           aria-modal="true"
           role="dialog"
         >
-          <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/70"
+            onClick={() => (!busy ? onClose() : undefined)}
+          />
 
+          {/* Modal */}
           <motion.div
-            className="relative w-[92vw] max-w-4xl max-h-[95vh] rounded-3xl border border-[#2E2D39] bg-[#0F0E17] shadow-2xl overflow-hidden flex flex-col"
+            className="relative w-[92vw] max-w-5xl max-h-[95vh] rounded-3xl border border-[#2E2D39] bg-[#0F0E17] shadow-2xl overflow-hidden flex flex-col"
             initial={{ y: 14, scale: 0.98, opacity: 0 }}
             animate={{ y: 0, scale: 1, opacity: 1 }}
             exit={{ y: 14, scale: 0.98, opacity: 0 }}
             transition={{ duration: 0.18 }}
           >
-            <button
-              onClick={onClose}
-              className="absolute top-4 right-4 z-10 h-10 w-10 rounded-2xl bg-[#0F0E17]/70 border border-[#2E2D39] hover:border-[#6C63FF]/70 flex items-center justify-center transition"
-              title="Close"
-            >
-              <X size={18} className="text-neutral-200" />
-            </button>
+            {/* Header */}
+            <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-[#2E2D39]">
+              <div className="min-w-0">
+                <p className="text-white font-semibold truncate">{title}</p>
+                <p className="text-xs text-neutral-400 truncate">
+                  Resolution: {item.width ?? "—"}x{item.height ?? "—"} • Version:{" "}
+                  {item.version}
+                </p>
+              </div>
 
+              <button
+                type="button"
+                className="h-9 w-9 rounded-2xl bg-[#0F0E17] border border-[#2E2D39] hover:border-[#00F5A0]/70 flex items-center justify-center transition disabled:opacity-60"
+                onClick={onClose}
+                disabled={busy}
+                aria-label="Close"
+              >
+                <X size={16} className="text-neutral-200" />
+              </button>
+            </div>
+
+            {/* Body */}
             <div
               className="
                 flex-1 min-h-0 p-5 flex flex-col gap-5
@@ -198,145 +270,240 @@ export default function ThumbnailEditModal({
                 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden
               "
             >
-              {/* Header */}
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-white font-semibold truncate">{title}</p>
-                  <p className="text-xs text-neutral-400 truncate">
-                    {item.width && item.height ? `Resolution: ${item.width}x${item.height}` : "Resolution: —"} • Version:{" "}
-                    {item.version ?? "—"}
-                  </p>
-                </div>
-
-                {mode ? (
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-2xl border border-[#00F5A0]/30 bg-[#00F5A0]/10 text-[#00F5A0] text-xs">
-                    <Brush size={14} />
-                    Masking: {modeLabel}
-                  </div>
-                ) : null}
-              </div>
-
-              {/* Image / Editor */}
-              <div className="rounded-2xl border border-[#2E2D39] bg-black/20 overflow-hidden">
-                <div className="w-full flex items-center justify-center bg-[#0F0E17] p-3">
-                  {href ? (
-                    mode ? (
-                      <div className="w-full">
-                        <ThumbnailMaskEditor ref={editorRef} imageUrl={href} showToolbar />
-                      </div>
-                    ) : (
-                      <img
-                        src={href}
-                        alt={title}
-                        loading="lazy"
-                        className="h-auto w-auto max-w-full max-h-[60vh] object-contain"
-                      />
-                    )
+              {/* Mode badge */}
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-xs text-neutral-400">
+                  {mode ? (
+                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded-2xl border border-[#00F5A0]/30 bg-[#00F5A0]/10 text-[#00F5A0]">
+                      Editing:{" "}
+                      <span className="text-neutral-200">
+                        {mode === "modify"
+                          ? "Modify region"
+                          : mode === "swap_face"
+                            ? "Swap face"
+                            : "Add text"}
+                      </span>
+                    </span>
                   ) : (
-                    <div className="text-neutral-500 py-10">No image available</div>
+                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded-2xl border border-[#2E2D39] bg-[#1B1A24] text-neutral-300">
+                      Choose an edit operation
+                    </span>
                   )}
                 </div>
               </div>
 
-              {/* Prompt (only during masking) */}
-              {mode ? (
-                <div className="rounded-2xl border border-[#2E2D39] bg-[#0F0E17] p-4">
-                  <p className="text-xs text-neutral-400 mb-2">
-                    Instruction (sent to Ideogram). Keep it short and specific.
-                  </p>
-                  <textarea
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    rows={3}
-                    className="w-full rounded-2xl bg-[#0F0E17] border border-[#2E2D39] px-4 py-3 text-white placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-[#6C63FF]/60"
-                  />
-                </div>
-              ) : null}
-
-              {/* Actions */}
-              {!mode ? (
-                <div className="shrink-0 flex flex-col md:flex-row gap-3">
-                  <PurpleActionButton
-                    label="Swap face"
-                    size="sm"
-                    onClick={startSwapFace}
-                    disabled={!href || busy}
-                    loading={swapLoading}
-                    className="w-full md:w-auto"
-                  />
-                  <PurpleActionButton
-                    label="Remove text"
-                    size="sm"
-                    onClick={startRemoveText}
-                    disabled={!href || busy}
-                    loading={removeLoading}
-                    className="w-full md:w-auto"
-                  />
-                </div>
-              ) : (
-                <div className="shrink-0 flex flex-col gap-3">
-                  {mode === "swap_face" ? (
-                    <div className="flex flex-col md:flex-row gap-3 md:items-center">
-                      <button
-                        type="button"
-                        onClick={triggerPickFace}
-                        disabled={busy}
-                        className={[
-                          "inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 font-medium transition border",
-                          busy
-                            ? "bg-[#2A2933] text-neutral-500 cursor-not-allowed border-[#2E2D39]"
-                            : "bg-[#0F0E17] text-white border-[#2E2D39] hover:border-[#00F5A0]/70",
-                        ].join(" ")}
-                      >
-                        <ImageIcon size={16} />
-                        {faceFile ? "Change face image" : "Pick face image"}
-                      </button>
-
-                      <div className="text-xs text-neutral-400 truncate">
-                        {faceFile ? `Selected: ${faceFile.name}` : "No face image selected"}
-                      </div>
-
-                      <input
-                        ref={faceFileRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={onPickFace}
-                      />
+              {/* Content */}
+              {mode === null ? (
+                <>
+                  <div className="rounded-2xl border border-[#2E2D39] bg-black/20">
+                    <div className="w-full flex items-center justify-center bg-[#0F0E17] p-3">
+                      {href ? (
+                        <img
+                          src={href}
+                          alt={title}
+                          loading="lazy"
+                          style={{
+                            maxWidth: maxWidth || "100%",
+                            maxHeight: maxHeight || "60vh",
+                            width: "100%",
+                            height: "auto",
+                            objectFit: "contain",
+                          }}
+                        />
+                      ) : (
+                        <div className="text-neutral-500 py-10">
+                          No image available
+                        </div>
+                      )}
                     </div>
-                  ) : null}
-
-                  <div className="flex flex-col md:flex-row gap-3">
-                    <PurpleActionButton
-                      label={mode === "swap_face" ? "Apply swap face" : "Apply remove text"}
-                      size="sm"
-                      onClick={mode === "swap_face" ? applySwapFace : applyRemoveText}
-                      disabled={!href || busy || (mode === "swap_face" && !faceFile)}
-                      loading={mode === "swap_face" ? swapLoading : removeLoading}
-                      className="w-full md:w-auto"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={cancelMasking}
-                      disabled={busy}
-                      className={[
-                        "inline-flex items-center justify-center rounded-2xl px-4 py-3 font-medium transition border",
-                        busy
-                          ? "bg-[#2A2933] text-neutral-500 cursor-not-allowed border-[#2E2D39]"
-                          : "bg-[#0F0E17] text-white border-[#2E2D39] hover:border-[#6C63FF]/70",
-                      ].join(" ")}
-                    >
-                      Cancel
-                    </button>
                   </div>
 
-                  <p className="text-xs text-neutral-400">
-                    Paint the region to edit in black. Everything else stays unchanged.
-                  </p>
-                </div>
-              )}
+                  <div className="shrink-0 flex flex-col md:flex-row gap-3">
+                    <PurpleActionButton
+                      label="Modify region"
+                      size="sm"
+                      onClick={startModify}
+                      disabled={!href || busy}
+                      className="w-full md:w-auto"
+                    />
+                    <PurpleActionButton
+                      label="Swap face"
+                      size="sm"
+                      onClick={startSwapFace}
+                      disabled={!href || busy}
+                      className="w-full md:w-auto"
+                    />
+                    <PurpleActionButton
+                      label="Add text"
+                      size="sm"
+                      onClick={startAddText}
+                      disabled={!href || busy}
+                      className="w-full md:w-auto"
+                    />
+                  </div>
 
+                  <p className="shrink-0 text-xs text-neutral-400">
+                    Modify region and Swap face use Ideogram edit + your mask. Add
+                    text is local rendering only (no Ideogram).
+                  </p>
+                </>
+              ) : null}
+
+              {/* Modify region (generic inpaint) */}
+              {mode === "modify" ? (
+                <>
+                  <ThumbnailMaskEditor
+                    ref={maskRef}
+                    imageUrl={href}
+                    maxWidth={maxWidth}
+                    maxHeight={maxHeight}
+                  />
+
+                  <div className="flex flex-col gap-3">
+                    <label className="text-xs text-neutral-300">
+                      Edit prompt (what should happen inside the black mask?)
+                    </label>
+                    <textarea
+                      value={prompt}
+                      onChange={(e) => setPrompt(e.target.value)}
+                      rows={3}
+                      className="italic w-full rounded-2xl bg-[#0F0E17] border border-[#2E2D39] px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#6C63FF]/60"
+                      placeholder="Example: Remove the text and reconstruct the background; keep everything outside the mask unchanged."
+                    />
+                  </div>
+
+                  <div className="shrink-0 flex flex-col md:flex-row gap-3">
+                    <PurpleActionButton
+                      label={modifyLoading ? "Applying..." : "Apply edit"}
+                      size="sm"
+                      onClick={applyModify}
+                      disabled={!href || modifyLoading || swapLoading || addTextLoading}
+                      loading={modifyLoading}
+                      className="w-full md:w-auto"
+                    />
+                    <PurpleActionButton
+                      label="Cancel"
+                      size="sm"
+                      onClick={() => setMode(null)}
+                      disabled={busy}
+                      className="w-full md:w-auto"
+                      gradientFrom="#2E2D39"
+                      gradientTo="#2E2D39"
+                    />
+                  </div>
+                </>
+              ) : null}
+
+              {/* Swap face */}
+              {mode === "swap_face" ? (
+                <>
+                  <div className="rounded-2xl border border-[#2E2D39] bg-[#1B1A24] p-4 flex flex-col gap-3">
+                    <p className="text-xs text-neutral-400">
+                      Upload a reference face image (portrait).
+                    </p>
+
+                    <input
+                      ref={faceFileRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] || null;
+                        setFaceFile(f);
+                      }}
+                    />
+
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => faceFileRef.current?.click()}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-[#2E2D39] bg-[#0F0E17] text-neutral-200 hover:border-[#00F5A0]/70 transition"
+                        disabled={busy}
+                      >
+                        <UploadCloud size={16} />
+                        Choose face image
+                      </button>
+
+                      <span className="text-xs text-neutral-400 truncate">
+                        {faceFile ? faceFile.name : "No file selected"}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs text-neutral-300">
+                        Edit prompt (how should the face be swapped?)
+                      </label>
+                      <textarea
+                        value={prompt}
+                        onChange={(e) => setPrompt(e.target.value)}
+                        rows={3}
+                        className="w-full rounded-2xl bg-[#0F0E17] border border-[#2E2D39] px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#6C63FF]/60"
+                        placeholder="Example: Replace the masked face with the reference face while keeping pose, lighting, and style consistent."
+                      />
+                    </div>
+                  </div>
+
+                  <ThumbnailMaskEditor
+                    ref={maskRef}
+                    imageUrl={href}
+                    maxWidth={maxWidth}
+                    maxHeight={maxHeight} />
+
+                  <div className="shrink-0 flex flex-col md:flex-row gap-3">
+                    <PurpleActionButton
+                      label={swapLoading ? "Applying..." : "Swap face"}
+                      size="sm"
+                      onClick={applySwapFace}
+                      disabled={!href || !faceFile || busy}
+                      loading={swapLoading}
+                      className="w-full md:w-auto"
+                    />
+                    <PurpleActionButton
+                      label="Cancel"
+                      size="sm"
+                      onClick={() => setMode(null)}
+                      disabled={busy}
+                      className="w-full md:w-auto"
+                      gradientFrom="#2E2D39"
+                      gradientTo="#2E2D39"
+                    />
+                  </div>
+                </>
+              ) : null}
+
+              {/* Add text */}
+              {mode === "add_text" ? (
+                <>
+                  <ThumbnailTextEditorS3Wrapped
+                    ref={textRef}
+                    thumbnailId={item.id}
+                    maxWidth={maxWidth}
+                    maxHeight={maxHeight}
+                  />
+
+                  <div className="shrink-0 flex flex-col md:flex-row gap-3">
+                    <PurpleActionButton
+                      label={addTextLoading ? "Applying..." : "Add text"}
+                      size="sm"
+                      onClick={applyAddText}
+                      disabled={!href || busy}
+                      loading={addTextLoading}
+                      className="w-full md:w-auto"
+                    />
+                    <PurpleActionButton
+                      label="Cancel"
+                      size="sm"
+                      onClick={() => setMode(null)}
+                      disabled={busy}
+                      className="w-full md:w-auto"
+                      gradientFrom="#2E2D39"
+                      gradientTo="#2E2D39"
+                    />
+                  </div>
+                </>
+              ) : null}
+
+              {/* Error */}
               {localError ? (
                 <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
                   {localError}
