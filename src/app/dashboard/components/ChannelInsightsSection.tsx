@@ -71,7 +71,7 @@ export default function ChannelInsightsSection({
           /* CASE 2 — No insights yet */
           <div className="flex flex-col items-center justify-center bg-[#16151E] border border-[#2E2D39] rounded-xl p-8">
             <p className="text-neutral-400 mb-4 text-sm text-center">
-              No insights have been generated yet. Don't be shy, get some now!
+              No insights yet. Don't be shy, get some now!
             </p>
 
             <PurpleActionButton

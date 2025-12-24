@@ -172,7 +172,14 @@ export function Header() {
                       className="block rounded-xl border border-white/10 bg-white/5 px-4 py-3 hover:bg-white/10 hover:text-white transition"
                       onClick={() => setMenuOpen(false)}
                     >
-                      Thumbnail
+                      Thumbnails
+                    </Link>
+                    <Link
+                      href="/explore"
+                      className="block rounded-xl border border-white/10 bg-white/5 px-4 py-3 hover:bg-white/10 hover:text-white transition"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Explore Ideas
                     </Link>
                   </div>
 
@@ -225,7 +232,14 @@ export function Header() {
                       className="block rounded-xl border border-white/10 bg-white/5 px-4 py-3 hover:bg-white/10 hover:text-white transition"
                       onClick={() => setMenuOpen(false)}
                     >
-                      Thumbnail
+                      Thumbnails
+                    </Link>
+                    <Link
+                      href="/explore"
+                      className="block rounded-xl border border-white/10 bg-white/5 px-4 py-3 hover:bg-white/10 hover:text-white transition"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Explore Ideas
                     </Link>
                   </div>
 

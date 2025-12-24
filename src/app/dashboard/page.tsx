@@ -156,7 +156,7 @@ export default function DashboardPage() {
               Creator Dashboard
             </h1>
             <p className="text-neutral-400 mt-2">
-              Track your channel, ideas, competitors, insights & workflow.
+              Track your channel, ideas, insights & workflow.
             </p>
           </div>
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, Search, Image as ImageIcon } from "lucide-react";
+import { ChevronDown, Search, Image as ImageIcon, IndentIncrease, LightbulbIcon } from "lucide-react";
 
 export default function FeaturesMenu() {
   const [open, setOpen] = useState(false);
@@ -22,7 +22,12 @@ export default function FeaturesMenu() {
         Icon: ImageIcon,
         description: "Manage your generated high-converting thumbnail concepts.",
       },
-
+      {
+        label: "Explore Ideas",
+        href: "/explore",
+        Icon: LightbulbIcon,
+        description: "Create professional ideas that actually work.",
+      },
     ],
     []
   );
