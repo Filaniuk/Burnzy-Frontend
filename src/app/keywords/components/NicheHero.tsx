@@ -12,7 +12,7 @@ export default function NicheHero() {
     >
       <h1 className="text-4xl sm:text-5xl mb-10 text-center font-bold leading-tight">
         <span className="bg-gradient-to-r from-[#6C63FF] to-[#00F5A0] bg-clip-text text-transparent">
-          Niche/Keyword Analyzer
+          Keyword Analyzer
         </span>
       </h1>
       <p className="max-w-3xl text-center text-neutral-400 mx-auto">

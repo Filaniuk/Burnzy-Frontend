@@ -7,6 +7,10 @@ import { GradientActionButton } from "@/components/GradientActionButton";
 import { apiFetch } from "@/lib/api";
 import ConfirmModal from "@/app/pricing/components/ConfirmModal";
 
+function cn(...classes: Array<string | false | undefined | null>) {
+  return classes.filter(Boolean).join(" ");
+}
+
 export default function TrendIdeasDashboard({
   tag,
   version,
@@ -18,7 +22,6 @@ export default function TrendIdeasDashboard({
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState<"left" | "right">("right");
-
   const [saved, setSaved] = useState(false);
 
   // ConfirmModal state
@@ -42,7 +45,6 @@ export default function TrendIdeasDashboard({
     );
   }
 
-
   const variants = {
     enter: (dir: "left" | "right") => ({
       x: dir === "right" ? 60 : -60,
@@ -56,18 +58,19 @@ export default function TrendIdeasDashboard({
       scale: 0.97,
     }),
   };
+
   const validIdeas = ideas.filter(isValidIdea);
 
-  if (!validIdeas.length)
+  if (!validIdeas.length) {
     return (
       <div className="text-center text-neutral-500 mt-6">
         No trend ideas found.
       </div>
     );
+  }
 
   const safeIndex = Math.min(currentIndex, validIdeas.length - 1);
   const idea = validIdeas[safeIndex];
-
 
   const imageUrl = idea.mocked_thumbnail_url
     ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/mocked-thumbnails/${idea.mocked_thumbnail_url}`
@@ -85,21 +88,15 @@ export default function TrendIdeasDashboard({
         }),
       });
 
-      // Only mark as saved if API succeeded
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-
     } catch (rawErr: any) {
       console.error("Save trend idea failed:", rawErr);
-
       setErrorMessage(normalizeError(rawErr));
       setErrorOpen(true);
-
-      // ❗ IMPORTANT: Do NOT show saved state on error
       setSaved(false);
     }
   }
-
 
   const nextIdea = () => {
     setDirection("right");
@@ -122,54 +119,86 @@ export default function TrendIdeasDashboard({
           animate="center"
           exit="exit"
           transition={{ duration: 0.35, ease: easeOut }}
-          className="relative w-full max-w-3xl mx-auto bg-[#16151E] rounded-2xl border border-[#2E2D39] shadow-xl px-6 py-8 mt-6"
+          className="relative w-full max-w-3xl mx-auto bg-[#0F0E17] rounded-2xl border border-[#2E2D39] shadow-2xl py-8 sm:py-10 mt-6"
         >
           {/* Arrows (Desktop Only) */}
           <div className="hidden md:block">
             <button
               onClick={prevIdea}
-              className="absolute left-[-70px] top-1/2 -translate-y-1/2 bg-[#2E2D39] hover:bg-[#3B3A4A] p-3 rounded-full text-white shadow-md"
+              aria-label="Previous idea"
+              className="absolute left-[-70px] top-1/2 -translate-y-1/2 bg-[#2E2D39] hover:bg-[#3B3A4A] p-3 rounded-full text-white shadow-lg transition"
             >
               <ChevronLeft size={22} />
             </button>
             <button
               onClick={nextIdea}
-              className="absolute right-[-70px] top-1/2 -translate-y-1/2 bg-[#2E2D39] hover:bg-[#3B3A4A] p-3 rounded-full text-white shadow-md"
+              aria-label="Next idea"
+              className="absolute right-[-70px] top-1/2 -translate-y-1/2 bg-[#2E2D39] hover:bg-[#3B3A4A] p-3 rounded-full text-white shadow-lg transition"
             >
               <ChevronRight size={22} />
             </button>
           </div>
 
+          {/* Mobile counter */}
+          <div className="md:hidden px-6 mb-3 text-sm text-neutral-500">
+            {safeIndex + 1} / {validIdeas.length}
+          </div>
+
           {/* Content */}
-          <div className="flex flex-col items-center text-center">
-            {/* Thumbnail */}
-            <div className="relative w-full max-w-xl h-[220px] rounded-xl overflow-hidden border border-[#3B3A4A] shadow-lg">
+          <div className="flex flex-col w-full">
+            {/* EDGE-TO-EDGE THUMBNAIL (no border) */}
+            <div className="relative w-full h-[220px] sm:h-[280px] overflow-hidden shadow-lg">
               {imageUrl ? (
                 <div
-                  className="absolute inset-0 bg-cover bg-center blur-md brightness-[0.9]"
+                  className="absolute inset-0 bg-cover bg-center blur-lg brightness-95 scale-110"
                   style={{ backgroundImage: `url(${imageUrl})` }}
                 />
               ) : (
-                <div className="h-full flex items-center justify-center bg-[#1B1A24] text-neutral-500">
+                <div className="absolute inset-0 bg-[#1B1A24] flex items-center justify-center text-neutral-500 text-sm">
                   No Thumbnail
                 </div>
               )}
 
-              {idea.thumbnail_mockup_text && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <p className="text-white text-xl font-semibold drop-shadow">
-                    {idea.thumbnail_mockup_text}
-                  </p>
-                </div>
-              )}
+              {/* Readability gradient */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
 
-              <div className="absolute top-3 right-3 bg-[#00F5A0]/20 text-[#00F5A0] px-3 py-1 rounded-full text-xs border border-[#00F5A0]/40">
+              {/* Bottom light spill */}
+              <div className="absolute inset-x-0 bottom-0 h-[55%] pointer-events-none">
+                <div
+                  className="absolute inset-0 blur-2xl opacity-95"
+                  style={{
+                    background:
+                      "radial-gradient(90% 80% at 50% 100%, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.14) 35%, rgba(255,255,255,0) 70%)",
+                  }}
+                />
+              </div>
+
+              {/* Centered thumbnail text */}
+              {idea.thumbnail_mockup_text ? (
+                <div className="absolute inset-0 flex items-center justify-center px-6">
+                  <div
+                    className={cn(
+                      "text-center font-extrabold uppercase tracking-tight",
+                      "text-white drop-shadow-[0_4px_18px_rgba(0,0,0,0.65)]",
+                      "text-3xl sm:text-2xl leading-none"
+                    )}
+                  >
+                    {idea.thumbnail_mockup_text}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Score chip */}
+              <div className="absolute top-4 right-4 bg-[#00F5A0]/20 text-[#00F5A0] px-3 py-1 text-xs rounded-full border border-[#00F5A0]/40 font-semibold shadow-sm">
                 {idea.trend_score}/10
               </div>
             </div>
 
-            <div className="mt-6 text-left w-full max-w-xl">
-              <h3 className="text-xl font-bold">{idea.title}</h3>
+            {/* PADDED TEXT */}
+            <div className="px-6 mt-6 text-left w-full">
+              <h3 className="text-lg sm:text-xl font-bold text-white leading-snug">
+                {idea.title}
+              </h3>
 
               <div className="bg-[#14131C] border border-[#2E2D39] rounded-xl p-4 mt-4">
                 <h4 className="text-[#6C63FF] font-semibold mb-1">
@@ -186,7 +215,7 @@ export default function TrendIdeasDashboard({
                 </p>
               )}
 
-              <div className="flex justify-center mt-5 gap-4">
+              <div className="flex flex-wrap justify-center mt-5 gap-4">
                 <GradientActionButton
                   label={saved ? "Saved!" : "Save Idea"}
                   size="md"
@@ -205,8 +234,8 @@ export default function TrendIdeasDashboard({
                 />
               </div>
 
-              <div className="mt-4 text-neutral-500 text-sm md:hidden">
-                {currentIndex + 1} / {validIdeas.length}
+              <div className="mt-4 text-neutral-500 text-sm md:hidden text-center">
+                {safeIndex + 1} / {validIdeas.length}
               </div>
             </div>
           </div>

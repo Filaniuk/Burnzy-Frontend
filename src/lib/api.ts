@@ -22,7 +22,6 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   const base = process.env.NEXT_PUBLIC_API_BASE_URL;
 
   if (!base) {
-    // Fails fast in dev if env is misconfigured
     throw new APIError("API base URL is not configured (NEXT_PUBLIC_API_BASE_URL missing).", {
       status: 0,
       detail: "Missing NEXT_PUBLIC_API_BASE_URL",
@@ -89,9 +88,9 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     });
   }
 
-  // Happy path: parse JSON safely
   try {
     const json = (await res.json()) as T;
+    console.log(json)
     return json;
   } catch (err) {
     throw new APIError("Failed to parse server response.", {

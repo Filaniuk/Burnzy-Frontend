@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/context/AuthContext";
 import { motion } from "framer-motion";
-import { Calendar, LineChart } from "lucide-react";
+import { Calendar, CalendarClock, ClipboardList, ImageIcon, Lightbulb, LineChart, Plane, PlaneIcon, Search, SearchCheckIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -173,18 +173,16 @@ export default function DashboardPage() {
           {/* ACTION BUTTONS */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <ActionButton
-              icon={<LineChart size={36} className="text-[#6C63FF]" />}
+              icon={<LineChart size={36} className="text-indigo-600" />}
               title={primary_channel ? "Re-analyze Channel" : "Analyze Channel"}
               desc={
-                primary_channel
-                  ? "Refresh channel insights"
-                  : "Connect your first channel"
+                primary_channel ? "Refresh channel insights" : "Connect your first channel"
               }
               onClick={() => router.push("/analyze")}
             />
 
             <ActionButton
-              icon={<Calendar size={36} className="text-[#6C63FF]" />}
+              icon={<ClipboardList size={36} className="text-emerald-600" />}
               title="Content Plan"
               desc="Get your unique trendy upload plan"
               onClick={() => {
@@ -197,12 +195,34 @@ export default function DashboardPage() {
             />
 
             <ActionButton
-              icon={<Calendar size={36} className="text-[#F8E45C]" />}
+              icon={<CalendarClock size={36} className="text-amber-500" />}
               title="Open Calendar"
               desc="Plan content & deadlines"
               onClick={() => router.push("/calendar")}
             />
+
+            <ActionButton
+              icon={<ImageIcon size={36} className="text-fuchsia-600" />}
+              title={"Thumbnails"}
+              desc="Create thumbnails for your ideas"
+              onClick={() => router.push("/thumbnails")}
+            />
+
+            <ActionButton
+              icon={<SearchCheckIcon size={36} className="text-sky-600" />}
+              title={"Keywords / Niches"}
+              desc={"Analyze keywords and hot niches"}
+              onClick={() => router.push("/keywords")}
+            />
+
+            <ActionButton
+              icon={<Lightbulb size={36} className="text-rose-600" />}
+              title={"Explore Ideas"}
+              desc={"Got an idea? Let's explore it!"}
+              onClick={() => router.push("/explore")}
+            />
           </div>
+
 
           {/* PRIMARY CHANNEL */}
           <SectionTitle title="My Channel" />
@@ -234,16 +254,17 @@ export default function DashboardPage() {
               {/* CHANNEL CARD */}
               <div className="bg-[#16151E] border border-[#2E2D39] rounded-xl p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <p className="text-sm text-neutral-400 mb-1">
+                  <p className="text-sm text-neutral-400 mb-2">
                     {primary_channel.is_topic ? "Primary topic" : "Primary channel"}
                   </p>
 
                   <h2 className="text-2xl font-semibold">
                     {primary_channel.channel_name}{" "}
                     <span className="text-neutral-500 text-sm">
-                      ({primary_channel.tag})
+                      {!primary_channel.is_topic ? primary_channel.tag : ""}
                     </span>
                   </h2>
+
 
                   <div className="mt-3 flex flex-wrap gap-4 text-sm text-neutral-300">
                     {!primary_channel.is_topic && (
@@ -254,13 +275,12 @@ export default function DashboardPage() {
                         <span>
                           Avg views: {primary_channel.avg_views?.toLocaleString() ?? "N/A"}
                         </span>
+                        <span>
+                          Uploads/week:{" "}
+                          {primary_channel.upload_frequency?.toFixed(1) ?? "N/A"}
+                        </span>
                       </>
                     )}
-
-                    <span>
-                      Uploads/week:{" "}
-                      {primary_channel.upload_frequency?.toFixed(1) ?? "N/A"}
-                    </span>
                   </div>
                 </div>
 

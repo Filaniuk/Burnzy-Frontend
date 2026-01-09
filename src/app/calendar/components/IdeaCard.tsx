@@ -49,8 +49,8 @@ export default function IdeaCard({
 
   const openIdea = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
-    const url = `/idea/${idea.uuid}${
-      tag ? `?tag=${encodeURIComponent(tag)}${version ? `&version=${version}` : ""}` : ""
+    const url = `/idea/${idea.uuid}${`?trend_id=${idea.trend_id}`}${
+      tag ? `&tag=${encodeURIComponent(tag)}${version ? `&version=${version}` : ""}` : ""
     }`;
     window.open(url, "_blank");
   };

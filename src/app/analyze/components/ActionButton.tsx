@@ -1,4 +1,5 @@
 import { GradientActionButton } from "@/components/GradientActionButton";
+import { PurpleActionButton } from "@/components/PurpleActionButton";
 import { motion, easeOut } from "framer-motion";
 
 const fadeUp = {
@@ -26,9 +27,9 @@ export default function ActionButtons({
   return (
     <motion.div variants={fadeUp} className="flex justify-center gap-4 mt-10 flex-wrap">
       {type === "channel" && (
-        <GradientActionButton onClick={onShowInsights} label="✨ Show Insights" size="md" />
+        <PurpleActionButton onClick={onShowInsights} label="✨ Show Insights" size="md" />
       )}
-      <GradientActionButton
+      <PurpleActionButton
         onClick={onGenerateIdeas}
         label="🔥 Generate Trend Ideas"
         size="md"

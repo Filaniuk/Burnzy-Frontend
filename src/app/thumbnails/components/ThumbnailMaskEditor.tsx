@@ -329,7 +329,7 @@ const ThumbnailMaskEditor = forwardRef<ThumbnailMaskEditorHandle, Props>(
                   : "border-[#2E2D39] text-neutral-200 bg-[#0F0E17]",
               ].join(" ")}
             >
-              Paint (black = edit)
+              Paint (green = edit)
             </button>
 
             <button
@@ -342,7 +342,7 @@ const ThumbnailMaskEditor = forwardRef<ThumbnailMaskEditorHandle, Props>(
                   : "border-[#2E2D39] text-neutral-200 bg-[#0F0E17]",
               ].join(" ")}
             >
-              Erase (white = keep)
+              Erase region
             </button>
 
             <div className="flex items-center gap-2">
@@ -405,8 +405,7 @@ const ThumbnailMaskEditor = forwardRef<ThumbnailMaskEditorHandle, Props>(
         </div>
 
         <p className="mt-2 text-xs text-neutral-400">
-          The photo remains fully visible. Green overlay indicates the black edit region
-          in the exported mask. Size matches the main preview and text editor.
+          Swap face (paint the affected area using green brush)
         </p>
       </div>
     );

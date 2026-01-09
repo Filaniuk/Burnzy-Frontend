@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence, easeInOut } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { apiFetch, APIError } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import { extractApiError } from "@/lib/errors";
 import { GradientActionButton } from "@/components/GradientActionButton";
 
@@ -30,13 +30,11 @@ type TrendIdeasResponse = {
 // avoid duplicate fetches on same (tag, version)
 const fetchedTags = new Set<string>();
 
-export default function TrendIdeas({
-  tag,
-  version,
-}: {
-  tag: string;
-  version: number;
-}) {
+function cn(...classes: Array<string | false | undefined | null>) {
+  return classes.filter(Boolean).join(" ");
+}
+
+export default function TrendIdeas({ tag, version }: { tag: string; version: number }) {
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [response, setResponse] = useState<TrendIdeasResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -74,6 +72,7 @@ export default function TrendIdeas({
 
       setResponse(data);
       setIdeas(data.data.video_ideas || []);
+      setCurrentIndex(0);
     } catch (err) {
       console.error("[TrendIdeas] Fetch error:", err);
       setError(extractApiError(err));
@@ -101,7 +100,7 @@ export default function TrendIdeas({
   // -----------------------------
   // UI States: Loading / Error / Empty
   // -----------------------------
-  if (loading)
+  if (loading) {
     return (
       <div className="text-center text-neutral-400 mt-6 animate-pulse">
         🧠 Generating trend ideas...
@@ -109,20 +108,23 @@ export default function TrendIdeas({
         <span className="text-sm">It can take a few minutes.</span>
       </div>
     );
+  }
 
-  if (error)
+  if (error) {
     return (
       <div className="mt-6 text-red-400 bg-red-950/30 border border-red-900 rounded-xl p-4 text-sm text-center">
         {error}
       </div>
     );
+  }
 
-  if (!ideas.length)
+  if (!ideas.length) {
     return (
       <div className="text-center text-neutral-500 mt-6">
         No trend ideas found.
       </div>
     );
+  }
 
   // -----------------------------
   // Normal state
@@ -142,7 +144,7 @@ export default function TrendIdeas({
         animate="center"
         exit="exit"
         transition={{ duration: 0.35, ease: easeInOut }}
-        className="relative w-full max-w-3xl mx-auto bg-[#0F0E17] rounded-2xl border border-[#2E2D39] shadow-2xl px-5 sm:px-6 py-8 sm:py-10"
+        className="relative w-full max-w-3xl mx-auto bg-[#0F0E17] rounded-2xl border border-[#2E2D39] shadow-2xl py-8 sm:py-10"
       >
         {/* DESKTOP NAV */}
         <div className="hidden md:block">
@@ -164,10 +166,11 @@ export default function TrendIdeas({
         </div>
 
         {/* MOBILE NAV */}
-        <div className="flex justify-between items-center mb-4 md:hidden">
+        <div className="flex justify-between items-center mb-4 md:hidden px-5 sm:px-6">
           <button
             onClick={prevIdea}
             className="bg-[#2E2D39] hover:bg-[#3B3A4A] text-white rounded-full p-2 shadow-md"
+            aria-label="Previous idea"
           >
             <ChevronLeft size={20} />
           </button>
@@ -179,39 +182,69 @@ export default function TrendIdeas({
           <button
             onClick={nextIdea}
             className="bg-[#2E2D39] hover:bg-[#3B3A4A] text-white rounded-full p-2 shadow-md"
+            aria-label="Next idea"
           >
             <ChevronRight size={20} />
           </button>
         </div>
 
         {/* CONTENT */}
-        <div className="flex flex-col items-center text-center">
-          <div className="relative w-full max-w-2xl h-[220px] sm:h-[280px] rounded-xl overflow-hidden border border-[#3B3A4A] shadow-lg">
-            {imageUrl ? (
-              <div
-                className="absolute inset-0 bg-cover bg-center blur-md brightness-90 scale-105"
-                style={{ backgroundImage: `url(${imageUrl})` }}
-              />
-            ) : (
-              <div className="absolute inset-0 bg-[#1B1A24] flex items-center justify-center text-neutral-500 text-sm">
-                No Thumbnail
-              </div>
-            )}
+        <div className="flex flex-col w-full">
+          {/* EDGE-TO-EDGE THUMBNAIL (no borders) */}
+          <div className="px-0">
+            <div className="relative w-full h-[220px] sm:h-[280px] overflow-hidden shadow-lg">
+              {imageUrl ? (
+                <div
+                  className="absolute inset-0 bg-cover bg-center blur-md brightness-95 scale-110"
+                  style={{ backgroundImage: `url(${imageUrl})` }}
+                />
+              ) : (
+                <div className="absolute inset-0 bg-[#1B1A24] flex items-center justify-center text-neutral-500 text-sm">
+                  No Thumbnail
+                </div>
+              )}
 
-            {idea.thumbnail_mockup_text && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <p className="text-white/80 text-xl sm:text-2xl font-semibold italic drop-shadow-md tracking-wide px-4 text-center">
-                  {idea.thumbnail_mockup_text}
-                </p>
-              </div>
-            )}
+              {/* Readability gradient (kept lighter so glow is visible) */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
 
-            <div className="absolute top-3 right-3 bg-[#00F5A0]/20 text-[#00F5A0] px-3 py-1 text-xs rounded-full border border-[#00F5A0]/40 font-semibold shadow-sm">
-              {idea.trend_score}/10
+              {/* Bottom “light spill” (visible drop like your reference screenshot) */}
+              <div className="absolute inset-x-0 bottom-0 h-[55%] pointer-events-none">
+                <div
+                  className="absolute inset-0 blur-2xl opacity-95"
+                  style={{
+                    background:
+                      "radial-gradient(90% 80% at 50% 100%, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.14) 35%, rgba(255,255,255,0) 70%)",
+                  }}
+                />
+              </div>
+
+              {/* Centered thumbnail text */}
+              {idea.thumbnail_mockup_text ? (
+                <div className="absolute inset-0 flex items-center justify-center px-6">
+                  <div
+                    className={cn(
+                      "text-center font-extrabold uppercase tracking-tight",
+                      "text-white drop-shadow-[0_4px_18px_rgba(0,0,0,0.65)]",
+                      "text-3xl sm:text-2xl leading-none"
+                    )}
+                  >
+                    {idea.thumbnail_mockup_text}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Score chip */}
+              <div className="absolute top-4 right-4 bg-[#00F5A0]/20 text-[#00F5A0] px-3 py-1 text-xs rounded-full border border-[#00F5A0]/40 font-semibold shadow-sm">
+                {idea.trend_score}/10
+              </div>
+
+              {/* Soft rounding mask matching card style */}
+              <div className="absolute inset-0 rounded-2xl pointer-events-none" />
             </div>
           </div>
 
-          <div className="mt-5 text-left w-full max-w-2xl">
+          {/* PADDED TEXT CONTENT */}
+          <div className="px-5 sm:px-6 mt-6 text-left w-full">
             <h3 className="text-lg sm:text-xl font-bold text-white mb-1 leading-snug">
               {idea.title}
             </h3>

@@ -21,6 +21,7 @@ import {
 } from "./components/IdeaSections";
 import ScriptViewer from "./components/ScriptViewer";
 import { ScriptData, VideoContentDetailedResponse } from "@/types/idea";
+import { PurpleActionButton } from "@/components/PurpleActionButton";
 
 // Lazy-loaded sections
 const IdeaHeader = dynamic(() => import("./components/IdeaHeader"), { ssr: false });
@@ -46,7 +47,6 @@ export default function IdeaDetailPage() {
   const ideaUuid = (params.uuid as string) || "";
   const tag = searchParams.get("tag") || "@default";
   const version = Number(searchParams.get("version")) || 1;
-
   const [tab, setTab] = useState<"brief" | "script">("brief");
   const [data, setData] = useState<VideoContentDetailedResponse["data"] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,67 +64,106 @@ export default function IdeaDetailPage() {
   const cancelRef = useRef(false);
 
   /** Normalize ANY backend or network error */
+  /** Normalize ANY backend or network error to a string */
   const normalizeError = (err: any, fallback: string) => {
     if (!err) return fallback;
+
+    // Already a string
     if (typeof err === "string") return err;
 
-    return (
-      err?.detail ||
-      err?.message ||
-      err?.error ||
-      fallback
-    );
+    // If apiFetch throws a Response or something Response-like
+    if (err instanceof Error && typeof err.message === "string") {
+      return err.message || fallback;
+    }
+
+    const detail = err?.detail ?? err?.response?.detail ?? err?.data?.detail;
+
+    // FastAPI/Pydantic errors often come as an array of {loc, msg, type, ...}
+    if (Array.isArray(detail)) {
+      const msgs = detail
+        .map((d) => (typeof d === "string" ? d : d?.msg))
+        .filter(Boolean);
+      return msgs.length ? msgs.join("\n") : fallback;
+    }
+
+    // Or as a single object with {msg, ...}
+    if (detail && typeof detail === "object") {
+      if (typeof detail.msg === "string") return detail.msg;
+
+      // Last resort: stringify
+      try {
+        return JSON.stringify(detail);
+      } catch {
+        return fallback;
+      }
+    }
+
+    // Sometimes the error itself has msg/message
+    if (typeof err?.message === "string") return err.message;
+    if (typeof err?.msg === "string") return err.msg;
+
+    // Last resort
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return fallback;
+    }
   };
 
-  /** ------------------------------
-   * Fetch detailed idea
-   * ------------------------------ */
+
   useEffect(() => {
-    const key = `${ideaUuid}-${tag}-${version}`;
-    if (fetchedIdeas.has(key)) return;
-    fetchedIdeas.add(key);
+  const exploreBatchUuid = searchParams.get("explore_batch_uuid") || "";
 
-    cancelRef.current = false;
-    setLoading(true);
+  // Guard: don’t send invalid requests that produce 422
+  if (!ideaUuid || !tag || !version || Number.isNaN(version)) return;
 
-    (async () => {
-      try {
-        const res = await apiFetch<any>("/api/v1/video_content_detailed", {
-          method: "POST",
-          body: JSON.stringify({
-            channel_tag: tag,
-            idea_uuid: ideaUuid,
-            version,
-          }),
-        });
+  const key = `${ideaUuid}-${tag}-${version}-${exploreBatchUuid}`;
+  if (fetchedIdeas.has(key)) return;
+  fetchedIdeas.add(key);
 
-        if (!res?.data?.video_detail) {
-          throw new Error("Missing detailed video data.");
-        }
+  cancelRef.current = false;
+  setLoading(true);
 
-        if (!cancelRef.current) setData(res.data);
-      } catch (err: any) {
-        const msg = normalizeError(err, "Failed to load idea details.");
-        if (!cancelRef.current) {
-          setFeedback({
-            show: true,
-            title: "Load Error",
-            description: msg,
-            color: "red",
-          });
-        }
-      } finally {
-        if (!cancelRef.current) setLoading(false);
+  (async () => {
+    try {
+      const res = await apiFetch<any>("/api/v1/video_content_detailed", {
+        method: "POST",
+        body: JSON.stringify({
+          channel_tag: tag,
+          idea_uuid: ideaUuid,
+          version,
+          ...(exploreBatchUuid ? { explore_batch_uuid: exploreBatchUuid } : {}),
+        }),
+      });
+
+      if (!res?.data?.video_detail) {
+        throw new Error("Missing detailed video data.");
       }
-    })();
 
-    return () => {
-      cancelRef.current = true;
-    };
-  }, [ideaUuid, tag, version]);
+      if (!cancelRef.current) setData(res.data);
+    } catch (err: any) {
+      const msg = normalizeError(err, "Failed to load idea details.");
+      if (!cancelRef.current) {
+        setFeedback({
+          show: true,
+          title: "Load Error",
+          description: msg,
+          color: "red",
+        });
+      }
+    } finally {
+      if (!cancelRef.current) setLoading(false);
+    }
+  })();
+
+  return () => {
+    cancelRef.current = true;
+  };
+}, [ideaUuid, tag, version, searchParams]); // important
+
 
   const v = useMemo(() => data?.video_detail || null, [data]);
-
+  console.log('v:', v)
   /** ------------------------------
    * Generate script
    * ------------------------------ */
@@ -326,21 +365,12 @@ function ScriptHeader({ script, loading, onGenerate }: any) {
         </p>
       </div>
 
-      <button
+      <PurpleActionButton 
         onClick={onGenerate}
         disabled={loading || !!script}
-        className={`px-4 py-2 rounded-xl text-sm font-medium transition
-        ${loading
-            ? "bg-[#2E2D39] text-neutral-400 cursor-wait"
-            : "bg-[#6C63FF] hover:bg-[#5a54d6] text-white"
-          }`}
-      >
-        {loading
-          ? "Generating Script…"
-          : script
-            ? "Script Generated"
-            : "Generate Script"}
-      </button>
+        loading={loading}
+        label="Generate Script"
+      />
     </div>
   );
 }

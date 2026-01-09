@@ -361,7 +361,7 @@ export default function ThumbnailEditModal({
 
                   <div className="flex flex-col gap-3">
                     <label className="text-xs text-neutral-300">
-                      Edit prompt (what should happen inside the black mask?)
+                      Edit prompt (what should happen inside the green mask?)
                     </label>
                     <textarea
                       value={prompt}

@@ -9,7 +9,6 @@ import ContentPlanHeader from "./components/ContentPlanHeader";
 import WeeklyPlanSection from "./components/WeeklyPlanSection";
 import LoadingAnalysis from "@/components/LoadingAnalysis";
 import ConfirmModal from "@/app/pricing/components/ConfirmModal";
-
 import { PurpleActionButton } from "@/components/PurpleActionButton";
 
 export default function ContentPlanPage() {
@@ -21,6 +20,9 @@ export default function ContentPlanPage() {
   const version = params.version ? Number(params.version) : 1;
   const uploadsPerWeek = Number(searchParams.get("uploads") || 2);
   const weeks = Number(searchParams.get("weeks") || 3);
+
+  // NEW
+  const startDate = (searchParams.get("start_date") || "").trim(); // "YYYY-MM-DD" or ""
 
   const [plan, setPlan] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,13 +37,11 @@ export default function ContentPlanPage() {
   const [confirmImport, setConfirmImport] = useState(false);
   const fetchRef = useRef<string | null>(null);
 
-  // ----------------------------------------------------
-  // FETCH CONTENT PLAN
-  // ----------------------------------------------------
   useEffect(() => {
-    const key = `${tag}-${version}-${uploadsPerWeek}-${weeks}`;
+    // include startDate in the key so it actually refetches
+    const key = `${tag}-${version}-${uploadsPerWeek}-${weeks}-${startDate}`;
 
-    if (fetchRef.current === key) return; // strict mode double-call guard
+    if (fetchRef.current === key) return;
     fetchRef.current = key;
 
     async function load() {
@@ -55,6 +55,8 @@ export default function ContentPlanPage() {
             uploads_per_week: uploadsPerWeek,
             weeks,
             version,
+            // send only if present; backend accepts null anyway
+            start_date: startDate || null,
           }),
         });
 
@@ -80,11 +82,8 @@ export default function ContentPlanPage() {
     }
 
     load();
-  }, [tag, version, uploadsPerWeek, weeks]);
+  }, [tag, version, uploadsPerWeek, weeks, startDate]);
 
-  // ----------------------------------------------------
-  // IMPORT PLAN INTO CALENDAR
-  // ----------------------------------------------------
   async function handleImportPlan() {
     if (!plan?.plan_uuid) {
       setFeedback({
@@ -121,9 +120,6 @@ export default function ContentPlanPage() {
     }
   }
 
-  // ----------------------------------------------------
-  // LOADING
-  // ----------------------------------------------------
   if (loading) {
     return (
       <LoadingAnalysis
@@ -133,9 +129,6 @@ export default function ContentPlanPage() {
     );
   }
 
-  // ----------------------------------------------------
-  // NO PLAN
-  // ----------------------------------------------------
   if (!plan) {
     return (
       <main className="min-h-screen bg-[#0F0E17] text-white flex flex-col items-center justify-center px-6 text-center">
@@ -173,10 +166,8 @@ export default function ContentPlanPage() {
   return (
     <main className="min-h-screen bg-[#0F0E17] text-white py-14 px-4 sm:px-6">
       <div className="max-w-6xl mx-auto space-y-12">
-        {/* HEADER */}
         <ContentPlanHeader plan={plan} />
 
-        {/* IMPORT BUTTON */}
         <div className="flex flex-col items-center gap-2">
           <PurpleActionButton
             label="📅 Import Plan To Calendar"
@@ -188,15 +179,12 @@ export default function ContentPlanPage() {
           </p>
         </div>
 
-
-        {/* WEEKLY PLAN */}
         <section className="space-y-10">
           {plan.weekly_plan.map((week: any) => (
             <WeeklyPlanSection key={week.week} week={week} plan={plan} />
           ))}
         </section>
 
-        {/* BACK BTN */}
         <div className="text-center mt-14 space-y-6">
           <button
             onClick={() => history.back()}
@@ -208,7 +196,6 @@ export default function ContentPlanPage() {
         </div>
       </div>
 
-      {/* CONFIRM IMPORT MODAL */}
       <ConfirmModal
         show={confirmImport}
         onCancel={() => setConfirmImport(false)}
@@ -222,7 +209,6 @@ export default function ContentPlanPage() {
         confirmColor="green"
       />
 
-      {/* GENERAL FEEDBACK MODAL */}
       <ConfirmModal
         show={feedback.show}
         onCancel={() => setFeedback({ ...feedback, show: false })}

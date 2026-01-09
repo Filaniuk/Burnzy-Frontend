@@ -30,6 +30,8 @@ export default function CreateIdeaModal({
 }: Props) {
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState("unassigned");
+
+  // NOW REQUIRED
   const [scheduledFor, setScheduledFor] = useState("");
 
   const [titleError, setTitleError] = useState<string | null>(null);
@@ -55,15 +57,17 @@ export default function CreateIdeaModal({
   };
 
   const validateDate = () => {
+    // REQUIRED now
     if (!scheduledFor) {
-      setDateError(null);
-      return true;
+      setDateError("Date is required.");
+      return false;
     }
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const selected = new Date(scheduledFor);
+    selected.setHours(0, 0, 0, 0);
 
     if (selected < today) {
       setDateError("Date cannot be in the past.");
@@ -75,7 +79,9 @@ export default function CreateIdeaModal({
   };
 
   useEffect(() => {
-    validateDate();
+    // Live-validate once user interacts
+    if (scheduledFor) validateDate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scheduledFor]);
 
   const normalizeError = (err: any): string => {
@@ -99,7 +105,8 @@ export default function CreateIdeaModal({
         body: JSON.stringify({
           title,
           status,
-          scheduled_for: scheduledFor || null,
+          // now always set (never null)
+          scheduled_for: scheduledFor,
           channel_tag: tag,
           version,
         }),
@@ -117,7 +124,12 @@ export default function CreateIdeaModal({
   };
 
   const isFormInvalid =
-    !title.trim() || titleError !== null || dateError !== null;
+    !title.trim() ||
+    !scheduledFor ||
+    titleError !== null ||
+    dateError !== null;
+
+  if (!open) return null;
 
   return (
     <>
@@ -146,8 +158,9 @@ export default function CreateIdeaModal({
                     Title *
                   </label>
                   <input
-                    className={`w-full bg-[#14131C] border rounded-lg px-3 py-2 text-white outline-none focus:border-[#6C63FF] ${titleError ? "border-red-500" : "border-[#2E2D39]"
-                      }`}
+                    className={`w-full bg-[#14131C] border rounded-lg px-3 py-2 text-white outline-none focus:border-[#6C63FF] ${
+                      titleError ? "border-red-500" : "border-[#2E2D39]"
+                    }`}
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     onBlur={validateTitle}
@@ -178,10 +191,10 @@ export default function CreateIdeaModal({
                   </select>
                 </div>
 
-                {/* Date */}
+                {/* Date (REQUIRED) */}
                 <div>
                   <label className="text-neutral-400 text-sm mb-1 block">
-                    Schedule for (optional)
+                    Schedule for *
                   </label>
                   <div className="relative">
                     <input
@@ -189,16 +202,20 @@ export default function CreateIdeaModal({
                       ref={(el) => {
                         dateRef.current = el;
                       }}
-                      className={`w-full bg-[#14131C] border rounded-lg px-3 py-2 pr-10 text-white focus:border-[#6C63FF] ${dateError ? "border-red-500" : "border-[#2E2D39]"
-                        }`}
+                      className={`w-full bg-[#14131C] border rounded-lg px-3 py-2 pr-10 text-white focus:border-[#6C63FF] ${
+                        dateError ? "border-red-500" : "border-[#2E2D39]"
+                      }`}
                       value={scheduledFor}
                       onChange={(e) => setScheduledFor(e.target.value)}
+                      onBlur={validateDate}
+                      required
                     />
 
                     <button
                       type="button"
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-300 hover:text-white"
                       onClick={() => dateRef.current?.showPicker?.()}
+                      aria-label="Pick a date"
                     >
                       📅
                     </button>
