@@ -79,7 +79,7 @@ export default function DashboardPlanModal({
       return;
     }
     if (weeks < 1 || weeks > 4) {
-      setFormError("Weeks must be 1–8.");
+      setFormError("Weeks must be 1–4.");
       return;
     }
     if (!validateStartDate()) return;
@@ -101,7 +101,7 @@ export default function DashboardPlanModal({
     uploadsPerWeek < 1 ||
     uploadsPerWeek > 7 ||
     weeks < 1 ||
-    weeks > 8 ||
+    weeks > 4 ||
     !startDate ||
     startDateError !== null;
 
@@ -117,7 +117,7 @@ export default function DashboardPlanModal({
 
         {/* Uploads per week */}
         <div className="mb-4">
-          <label className="text-sm text-neutral-400">Uploads per week</label>
+          <label className="text-sm text-neutral-400">Uploads per week (1–7)</label>
           <input
             type="number"
             min={1}
@@ -130,11 +130,11 @@ export default function DashboardPlanModal({
 
         {/* Weeks */}
         <div className="mb-4">
-          <label className="text-sm text-neutral-400">Weeks to plan</label>
+          <label className="text-sm text-neutral-400">Weeks to plan (1-4)</label>
           <input
             type="number"
             min={1}
-            max={8}
+            max={4}
             value={weeks}
             onChange={(e) => setWeeks(Number(e.target.value))}
             className="w-full bg-[#14131C] border border-[#2E2D39] rounded-lg px-3 py-2 mt-1 text-white outline-none focus:border-[#6C63FF]"
@@ -144,7 +144,7 @@ export default function DashboardPlanModal({
         {/* Start date (REQUIRED) */}
         <div className="mb-4">
           <label className="text-neutral-400 text-sm mb-1 block">
-            Start date *
+            Start date * (must not be in the past)
           </label>
 
           <div className="relative">
