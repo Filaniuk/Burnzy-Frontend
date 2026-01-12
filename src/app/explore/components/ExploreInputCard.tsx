@@ -15,7 +15,7 @@ type Advanced = {
 
 const controlBase =
   "w-full rounded-2xl bg-[#0F0E17] text-white placeholder:text-white/30 text-sm outline-none " +
-  "ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-white/20";
+  "ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset ring-offset-0";
 
 export default function ExploreInputCard({
   creatorInput,
@@ -26,6 +26,8 @@ export default function ExploreInputCard({
   setAdvanced,
   isLoading,
   onSubmit,
+  inputError,
+  inputErrorText,
 }: {
   creatorInput: string;
   setCreatorInput: (v: string) => void;
@@ -38,6 +40,10 @@ export default function ExploreInputCard({
 
   isLoading: boolean;
   onSubmit: () => void;
+
+  // NEW
+  inputError?: boolean;
+  inputErrorText?: string;
 }) {
   const canSubmit = !isLoading && creatorInput.trim().length >= 1;
 
@@ -52,18 +58,12 @@ export default function ExploreInputCard({
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-white">Your idea</h2>
           <p className="text-sm text-neutral-400 mt-1 max-w-2xl">
-            Add a rough concept, angle, or topic. We will come up with high-leverage
-            variations.
+            Add a rough concept, angle, or topic. We will come up with high-leverage variations.
           </p>
         </div>
 
         <div className="shrink-0">
-          <GradientActionButton
-            onClick={onSubmit}
-            disabled={!canSubmit}
-            loading={isLoading}
-            label="Explore Ideas"
-          />
+          <GradientActionButton onClick={onSubmit} disabled={!canSubmit} loading={isLoading} label="Explore Ideas" />
         </div>
       </div>
 
@@ -73,20 +73,25 @@ export default function ExploreInputCard({
           onChange={(e) => setCreatorInput(e.target.value)}
           rows={5}
           placeholder='Example: "I want to make a video about how I trained for a half marathon while working full time."'
-          className={`${controlBase} p-4 leading-relaxed`}
+          className={[
+            controlBase,
+            "p-4 leading-relaxed",
+            inputError ? "ring-red-500 focus:ring-red-500" : "focus:ring-white/20",
+          ].join(" ")}
         />
 
+        {inputError && (
+          <span className="mt-2 block text-xs text-red-400">
+            {inputErrorText || "Please enter at least 8 characters."}
+          </span>
+        )}
+
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/50">
-          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
-            Tailored to your primary channel
-          </span>
-          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
-            Hot trends
-          </span>
-          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
-            Short meaning summary
-          </span>
+          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Tailored to your primary channel</span>
+          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Hot trends</span>
+          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Short meaning summary</span>
         </div>
+
         <p className="text-xs text-neutral-400 mt-5 max-w-2xl">
           Each explored idea is stored in your{" "}
           <Link href="/dashboard" className="text-[#00F5A0] hover:text-emerald-400">
@@ -97,11 +102,7 @@ export default function ExploreInputCard({
       </div>
 
       <div className="mt-6 flex flex-col gap-4">
-        <ToggleSwitch
-          enabled={advancedOpen}
-          onToggle={() => setAdvancedOpen(!advancedOpen)}
-          label="Advanced options"
-        />
+        <ToggleSwitch enabled={advancedOpen} onToggle={() => setAdvancedOpen(!advancedOpen)} label="Advanced options" />
 
         <div className="w-full">
           <AnimatePresence>
@@ -113,7 +114,6 @@ export default function ExploreInputCard({
                 transition={{ duration: 0.25 }}
                 className="overflow-hidden"
               >
-                {/* Optional: center the advanced panel */}
                 <div className="mx-auto w-full max-w-2xl">
                   <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Field
@@ -147,7 +147,7 @@ export default function ExploreInputCard({
                             format: e.target.value as Advanced["format"],
                           }))
                         }
-                        className={`${controlBase} p-3`}
+                        className={`${controlBase} p-3 focus:ring-white/20`}
                       >
                         <option value="auto">Auto</option>
                         <option value="shorts">Shorts</option>
@@ -159,19 +159,15 @@ export default function ExploreInputCard({
                       <label className="text-xs text-white/70">Constraints</label>
                       <textarea
                         value={advanced.constraints}
-                        onChange={(e) =>
-                          setAdvanced((p) => ({ ...p, constraints: e.target.value }))
-                        }
+                        onChange={(e) => setAdvanced((p) => ({ ...p, constraints: e.target.value }))}
                         rows={3}
                         placeholder='Example: "No gym footage. Focus on city running + routine."'
-                        className={`${controlBase} mt-2 p-4 leading-relaxed`}
+                        className={`${controlBase} mt-2 p-4 leading-relaxed focus:ring-white/20`}
                       />
                     </div>
                   </div>
 
-                  <p className="text-xs text-white/40 mt-4">
-                    Advanced options improve the quality of explored ideas.
-                  </p>
+                  <p className="text-xs text-white/40 mt-4">Advanced options improve the quality of explored ideas.</p>
                 </div>
               </motion.div>
             )}
@@ -196,12 +192,7 @@ function Field({
   return (
     <div className="flex flex-col gap-2 min-w-0">
       <label className="text-xs text-white/70">{label}</label>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className={`${controlBase} p-3`}
-      />
+      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={`${controlBase} p-3 focus:ring-white/20`} />
     </div>
   );
 }

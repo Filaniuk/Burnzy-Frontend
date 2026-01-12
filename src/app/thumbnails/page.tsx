@@ -12,7 +12,9 @@ import ThumbnailGenerateCard from "./components/ThumbnailGenerateCard";
 import ThumbnailsGrid from "./components/ThumbnailsGrid";
 import LoadingThumbnails from "./components/LoadingThumbnails";
 
-import type { GeneratedThumbnail, ThumbnailsListResponse } from "@/types/thumbnail";
+import type { GeneratedThumbnail } from "@/types/thumbnail";
+import { useAuth } from "@/context/AuthContext";
+import Unauthorized from "@/components/Unauthorized";
 
 type ThumbnailsResponse = {
   status: string;
@@ -32,18 +34,12 @@ type IdeaSummary = {
   created_at?: string | null;
 };
 
-type IdeasResponse = {
-  status: string;
-  message?: string;
-  data: IdeaSummary[];
-  meta?: any;
-};
-
 export default function ThumbnailsPage() {
+  const { user, loading: authLoading } = useAuth();
+
   const [items, setItems] = useState<GeneratedThumbnail[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-
   const [ideas, setIdeas] = useState<IdeaSummary[]>([]);
   const [ideasLoading, setIdeasLoading] = useState(false);
 
@@ -54,15 +50,21 @@ export default function ThumbnailsPage() {
     color: "red" as "red" | "yellow" | "green",
   });
 
-  const openModal = (title: string, description: string, color: "red" | "yellow" | "green" = "red") => {
-    setModal({ show: true, title, description, color });
-  };
+  const openModal = useCallback(
+    (title: string, description: string, color: "red" | "yellow" | "green" = "red") => {
+      setModal({ show: true, title, description, color });
+    },
+    []
+  );
 
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     setModal((m) => ({ ...m, show: false }));
-  };
+  }, []);
 
   const fetchThumbnails = useCallback(async () => {
+    // Only run when logged in
+    if (!user) return;
+
     try {
       setLoading(true);
       const res = await apiFetch<ThumbnailsResponse>("/api/v1/thumbnails?limit=90&offset=0");
@@ -72,35 +74,37 @@ export default function ThumbnailsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user, openModal]);
 
   const fetchIdeas = useCallback(async () => {
+    // Only run when logged in
+    if (!user) return;
+
     try {
       setIdeasLoading(true);
-      const res = await apiFetch<any>("/api/v1/trend_ideas/latest_full", {
-        method: "GET"
-      });
+      const res = await apiFetch<any>("/api/v1/trend_ideas/latest_full", { method: "GET" });
       setIdeas(res.data.ideas || []);
     } catch (err: any) {
-      // Non-fatal: user can still paste UUID manually if you keep that path around.
-      openModal("Failed to load ideas", extractApiError(err), "red");
+      openModal("Failed to load thumbnails", extractApiError(err), "red");
     } finally {
       setIdeasLoading(false);
     }
-  }, []);
+  }, [user, openModal]);
 
   useEffect(() => {
+    if (authLoading || !user) return;
     fetchThumbnails();
     fetchIdeas();
-  }, [fetchThumbnails, fetchIdeas]);
+  }, [authLoading, user, fetchThumbnails, fetchIdeas]);
 
   async function onGenerate(
     idea: IdeaSummary,
     opts?: { activeIdx?: number; thumbnailConcept?: string | null }
   ) {
+    if (!user) return; // extra safety
     if (!idea?.uuid) return;
 
-    const activeIdx = typeof opts?.activeIdx === "number" ? opts!.activeIdx : null;
+    const activeIdx = typeof opts?.activeIdx === "number" ? opts.activeIdx : null;
     const thumbnailConcept = (opts?.thumbnailConcept || "").trim() || null;
 
     try {
@@ -109,7 +113,7 @@ export default function ThumbnailsPage() {
       await apiFetch(`/api/v1/generate_thumbnail/${idea.uuid}`, {
         method: "POST",
         body: JSON.stringify({
-          trend_id: idea.trend_idea_id ?? null, // <-- use trend_idea_id from your latest_full
+          trend_id: idea.trend_idea_id ?? null,
           active_idx: activeIdx,
           thumbnail_concept: thumbnailConcept,
         }),
@@ -123,6 +127,11 @@ export default function ThumbnailsPage() {
     }
   }
 
+  if (authLoading) return null;
+
+  if (!user) {
+    return <Unauthorized title="Login Required" description="Login is required to access this page." />;
+  }
 
   return (
     <>
@@ -141,11 +150,7 @@ export default function ThumbnailsPage() {
           ideasLoading={ideasLoading}
         />
 
-        {loading ? (
-          <LoadingThumbnails />
-        ) : (
-          <ThumbnailsGrid items={items} onMutate={fetchThumbnails} />
-        )}
+        {loading ? <LoadingThumbnails /> : <ThumbnailsGrid items={items} onMutate={fetchThumbnails} />}
       </motion.main>
 
       <ConfirmModal

@@ -7,6 +7,8 @@ import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import HistorySection from "./components/HistorySection";
+import Unauthorized from "@/components/Unauthorized";
+import { useAuth } from "@/context/AuthContext";
 
 // MATCHES BACKEND SHAPE EXACTLY
 interface HistoryItem {
@@ -21,14 +23,17 @@ interface HistoryItem {
 }
 
 export default function HistoryPage() {
+  const { user, loading: authLoading } = useAuth();
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
-
   const [errorOpen, setErrorOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState("Failed to load your history.");
-
   const loadedRef = useRef(false);
   const router = useRouter();
+
+  if (!user) {
+    return <Unauthorized title="Login Required" description="Login is required to access this page." />;
+  }
 
   // --- Fetch history ---
   const fetchHistory = useCallback(async () => {

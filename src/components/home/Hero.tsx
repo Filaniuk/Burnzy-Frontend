@@ -116,8 +116,10 @@ export default function Hero() {
           </h1>
 
           <p className="mt-5 text-base text-neutral-300 sm:text-lg">
-            Boost your content with next-gen AI that studies real-time trends,
-            audience behavior, and channel performance to help you scale faster.
+            Boost your content with AI that tracks real-time trends and channel performance: all in one workspace to{" "}
+            <span className="text-white/90 font-medium">explore ideas</span>,{" "}
+            <span className="text-white/90 font-medium">discover niches</span>, and{" "}
+            <span className="text-white/90 font-medium">craft thumbnails</span>.
           </p>
 
           <div className="mt-8">

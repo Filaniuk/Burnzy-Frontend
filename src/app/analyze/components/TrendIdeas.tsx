@@ -5,7 +5,6 @@ import { motion, AnimatePresence, easeInOut } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { extractApiError } from "@/lib/errors";
-import { GradientActionButton } from "@/components/GradientActionButton";
 import { PurpleActionButton } from "@/components/PurpleActionButton";
 
 type Idea = {
@@ -15,6 +14,7 @@ type Idea = {
   why_this_idea: string;
   mocked_thumbnail_url?: string;
   thumbnail_mockup_text?: string;
+  format?: string; // <-- add this
 };
 
 type TrendIdeasResponse = {
@@ -33,6 +33,18 @@ const fetchedTags = new Set<string>();
 
 function cn(...classes: Array<string | false | undefined | null>) {
   return classes.filter(Boolean).join(" ");
+}
+
+function formatLabel(format?: string) {
+  const f = (format || "").toLowerCase();
+
+  if (f === "shorts" || f === "short") return "Shorts";
+  if (f === "long_form" || f === "longform" || f === "long") return "Long-form";
+
+  // fallback: prettify snake_case / kebab-case
+  return f
+    ? f.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+    : "Format";
 }
 
 export default function TrendIdeas({ tag, version }: { tag: string; version: number }) {
@@ -120,17 +132,14 @@ export default function TrendIdeas({ tag, version }: { tag: string; version: num
   }
 
   if (!ideas.length) {
-    return (
-      <div className="text-center text-neutral-500 mt-6">
-        No trend ideas found.
-      </div>
-    );
+    return <div className="text-center text-neutral-500 mt-6">No trend ideas found.</div>;
   }
 
   // -----------------------------
   // Normal state
   // -----------------------------
   const idea = ideas[currentIndex];
+
   const imageUrl = idea.mocked_thumbnail_url
     ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/mocked-thumbnails/${idea.mocked_thumbnail_url}`
     : null;
@@ -208,7 +217,7 @@ export default function TrendIdeas({ tag, version }: { tag: string; version: num
               {/* Readability gradient (kept lighter so glow is visible) */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
 
-              {/* Bottom “light spill” (visible drop like your reference screenshot) */}
+              {/* Bottom “light spill” */}
               <div className="absolute inset-x-0 bottom-0 h-[55%] pointer-events-none">
                 <div
                   className="absolute inset-0 blur-2xl opacity-95"
@@ -234,7 +243,12 @@ export default function TrendIdeas({ tag, version }: { tag: string; version: num
                 </div>
               ) : null}
 
-              {/* Score chip */}
+              {/* Format chip (top-left) */}
+              <div className="absolute top-4 left-4 bg-white/10 text-white px-3 py-1 text-xs rounded-full border border-white/15 font-semibold shadow-sm backdrop-blur">
+                {formatLabel(idea.format)}
+              </div>
+
+              {/* Score chip (top-right) */}
               <div className="absolute top-4 right-4 bg-[#00F5A0]/20 text-[#00F5A0] px-3 py-1 text-xs rounded-full border border-[#00F5A0]/40 font-semibold shadow-sm">
                 {idea.trend_score}/10
               </div>
@@ -250,17 +264,11 @@ export default function TrendIdeas({ tag, version }: { tag: string; version: num
               {idea.title}
             </h3>
 
-            <p className="text-sm text-neutral-400 mb-3">
-              {response?.data.channel_name}
-            </p>
+            <p className="text-sm text-neutral-400 mb-3">{response?.data.channel_name}</p>
 
             <div className="bg-[#14131C] border border-[#2E2D39] rounded-xl p-4 mb-5">
-              <h4 className="text-[#6C63FF] font-semibold mb-1">
-                🤔 Why this idea works
-              </h4>
-              <p className="text-neutral-300 text-sm leading-relaxed">
-                {idea.why_this_idea}
-              </p>
+              <h4 className="text-[#6C63FF] font-semibold mb-1">🤔 Why this idea works</h4>
+              <p className="text-neutral-300 text-sm leading-relaxed">{idea.why_this_idea}</p>
             </div>
 
             <div className="flex justify-center">

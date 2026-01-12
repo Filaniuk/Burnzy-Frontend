@@ -25,7 +25,6 @@ type AdvancedState = {
 
 export default function ExploreIdeasPage() {
   const { user, loading: authLoading } = useAuth();
-
   const [creatorInput, setCreatorInput] = useState("");
   const [advancedOpen, setAdvancedOpen] = useState(true);
   const [advanced, setAdvanced] = useState<AdvancedState>({
@@ -46,20 +45,27 @@ export default function ExploreIdeasPage() {
   const [errorOpen, setErrorOpen] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  // NEW: submit attempt flag
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+
   const advancedPayload = useMemo(() => {
     const payload: any = {};
     if (advanced.budget.trim()) payload.budget = advanced.budget.trim();
     if (advanced.location.trim()) payload.location = advanced.location.trim();
     if (advanced.desired_length.trim()) payload.desired_length = advanced.desired_length.trim();
     if (advanced.constraints.trim()) payload.constraints = advanced.constraints.trim();
-    // always include steering enums
     payload.format = advanced.format;
     payload.platform = advanced.platform;
     return payload;
   }, [advanced]);
 
+  const inputTooShort = creatorInput.trim().length < 8;
+  const showInputError = submitAttempted && inputTooShort;
+
   async function submit() {
-    if (creatorInput.trim().length < 8) return;
+    setSubmitAttempted(true);
+
+    if (inputTooShort) return;
 
     setLoading(true);
     setIdeas([]);
@@ -92,12 +98,10 @@ export default function ExploreIdeasPage() {
     }
   }
 
-  if (authLoading) {
-    return <LoadingAnalysis />;
-  }
+  if (authLoading) return <LoadingAnalysis />;
 
   if (!user) {
-    return <Unauthorized title="Explore Ideas requires login" description="Please sign in to explore suggestions." />;
+    return <Unauthorized title="Login Required" description="Login is required to access this page." />;
   }
 
   return (
@@ -108,13 +112,22 @@ export default function ExploreIdeasPage() {
         <div className="mt-8">
           <ExploreInputCard
             creatorInput={creatorInput}
-            setCreatorInput={setCreatorInput}
+            setCreatorInput={(v) => {
+              setCreatorInput(v);
+              // Optional: once user starts fixing input, you can clear the attempted flag
+              // so the red state disappears when it becomes valid.
+              // If you prefer it to stay until next submit, remove the next 2 lines.
+              if (submitAttempted && v.trim().length >= 8) setSubmitAttempted(false);
+            }}
             advancedOpen={advancedOpen}
             setAdvancedOpen={setAdvancedOpen}
             advanced={advanced}
             setAdvanced={setAdvanced}
             isLoading={loading}
             onSubmit={submit}
+            // NEW props
+            inputError={showInputError}
+            inputErrorText="Please enter at least 8 characters."
           />
         </div>
 
@@ -140,12 +153,7 @@ export default function ExploreIdeasPage() {
         )}
 
         {batchUuid && (
-          <ExploreIdeasGrid
-            ideas={ideas}
-            channelTag={channelTag}
-            version={version}
-            batchUuid={batchUuid}
-          />
+          <ExploreIdeasGrid ideas={ideas} channelTag={channelTag} version={version} batchUuid={batchUuid} />
         )}
 
         <ConfirmModal

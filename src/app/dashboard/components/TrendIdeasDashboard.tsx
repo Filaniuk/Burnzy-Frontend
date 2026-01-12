@@ -3,13 +3,26 @@
 import { useState } from "react";
 import { motion, AnimatePresence, easeOut } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { GradientActionButton } from "@/components/GradientActionButton";
 import { apiFetch } from "@/lib/api";
 import ConfirmModal from "@/app/pricing/components/ConfirmModal";
 import { PurpleActionButton } from "@/components/PurpleActionButton";
 
 function cn(...classes: Array<string | false | undefined | null>) {
   return classes.filter(Boolean).join(" ");
+}
+
+function formatLabel(format?: string) {
+  const f = (format || "").toLowerCase();
+
+  if (f === "shorts" || f === "short") return "Shorts";
+  if (f === "long_form" || f === "longform" || f === "long") return "Long-form";
+
+  // fallback: prettify snake_case / kebab-case
+  return f
+    ? f
+        .replace(/[_-]+/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase())
+    : "Format";
 }
 
 export default function TrendIdeasDashboard({
@@ -24,8 +37,6 @@ export default function TrendIdeasDashboard({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState<"left" | "right">("right");
   const [saved, setSaved] = useState(false);
-
-  // ConfirmModal state
   const [errorOpen, setErrorOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState("Something went wrong.");
 
@@ -189,7 +200,12 @@ export default function TrendIdeasDashboard({
                 </div>
               ) : null}
 
-              {/* Score chip */}
+              {/* Format chip (top-left) */}
+              <div className="absolute top-4 left-4 bg-white/10 text-white px-3 py-1 text-xs rounded-full border border-white/15 font-semibold shadow-sm backdrop-blur">
+                {formatLabel(idea.format)}
+              </div>
+
+              {/* Score chip (top-right) */}
               <div className="absolute top-4 right-4 bg-[#00F5A0]/20 text-[#00F5A0] px-3 py-1 text-xs rounded-full border border-[#00F5A0]/40 font-semibold shadow-sm">
                 {idea.trend_score}/10
               </div>

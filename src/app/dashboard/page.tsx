@@ -28,19 +28,13 @@ export default function DashboardPage() {
   const { user, loading, unauthorized } = useAuth();
   const router = useRouter();
   const loadedRef = useRef(false);
-
   const [data, setData] = useState<DashboardOverviewResponse | null>(null);
   const [loadingData, setLoadingData] = useState(true);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [noChannelModalOpen, setNoChannelModalOpen] = useState(false);
-
-  // Error modal
   const [errorOpen, setErrorOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState("Failed to load your dashboard.");
 
-  // -----------------------------
-  // Load Dashboard Overview
-  // -----------------------------
   useEffect(() => {
     if (!user) return;
     if (loadedRef.current) return;
@@ -87,15 +81,10 @@ export default function DashboardPage() {
   // -----------------------------
   // Loading State
   // ----------------------------
-  if (unauthorized || !user) {
-    return (
-      <Unauthorized
-        title="No analyses yet"
-        description="You haven’t analyzed any channels or topics yet. Log in to continue."
-        buttonText="Login"
-      />
-    );
+  if (!user) {
+    return <Unauthorized title="Login Required" description="Login is required to access this page." />;
   }
+
 
   if (loading || loadingData) {
     return <LoadingAnalysis message="Loading your dashboard" />;

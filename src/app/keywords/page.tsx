@@ -12,6 +12,8 @@ import type { NicheAnalysisData } from "@/types/keywords";
 import NicheHero from "./components/NicheHero";
 import NicheInputCard from "./components/NicheInputCard";
 import NicheResults from "./components/NicheResults";
+import { useAuth } from "@/context/AuthContext";
+import Unauthorized from "@/components/Unauthorized";
 
 type NicheApiResponse = {
   status: "success" | "error";
@@ -25,6 +27,7 @@ type NicheApiResponse = {
 };
 
 export default function NichePage() {
+  const { user, loading: authLoading } = useAuth();
   const [keyword, setKeyword] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<NicheApiResponse | null>(null);
@@ -75,6 +78,10 @@ export default function NichePage() {
   if (loading && !result) {
     return <LoadingAnalysis />;
   }
+
+  if (!user) {
+      return <Unauthorized title="Login Required" description="Login is required to access this page." />;
+    }
 
   return (
     <div className="min-h-screen bg-[#0F0E17] text-white px-6 py-10">
