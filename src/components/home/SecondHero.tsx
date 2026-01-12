@@ -46,9 +46,14 @@ export default function SecondHero() {
 
     const benefits = [
         {
-            icon: <Sparkles className="text-[#00F5A0] w-6 h-6" />,
-            title: "Data-Driven Channel Insights & Optimization Tips",
-            desc: "AI analyzes your channel performance, audience behavior, retention patterns, and niche trends.",
+            icon: <CheckCircle className="text-[#00F5A0] w-6 h-6" />,
+            title: "Trend-Based Ideas, Thumbnails, Scripts and Briefs Tailored to You",
+            desc: "Ideas matched to your niche, trending topics, and top-performing content formats. Receive full scripts, title ideas, thumbnails, and creative directions in seconds.",
+        },
+        {
+            icon: <PenTool className="text-[#6C63FF] w-6 h-6" />,
+            title: "Explore Own Ideas, Niches & Keywords That Actually Rank",
+            desc: "Discover high-intent keywords, underestimated niches and content angles backed by real-time YouTube analytics.",
         },
         {
             icon: <CalendarDays className="text-[#6C63FF] w-6 h-6" />,
@@ -56,11 +61,12 @@ export default function SecondHero() {
             desc: "Your entire content plan auto-generated — including publishing days, video sequence, and production workflow.",
         },
         {
-            icon: <CheckCircle className="text-[#00F5A0] w-6 h-6" />,
-            title: "Trend-Based Video Ideas, Full Scripts and Briefs Tailored to You",
-            desc: "Ideas matched to your niche, trending topics, and top-performing content formats. Receive full scripts, title ideas, thumbnails, and creative directions in seconds.",
+            icon: <Sparkles className="text-[#00F5A0] w-6 h-6" />,
+            title: "Data-Driven Channel Insights & Optimization Tips",
+            desc: "AI analyzes your channel performance, audience behavior, retention patterns, and niche trends.",
         },
     ];
+
 
     return (
         <section className="w-full bg-[#0F0E17] text-white mt-24 px-6">

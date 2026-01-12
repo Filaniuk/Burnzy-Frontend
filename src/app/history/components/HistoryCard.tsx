@@ -1,6 +1,7 @@
 "use client";
 
 import { GradientActionButton } from "@/components/GradientActionButton";
+import { PurpleActionButton } from "@/components/PurpleActionButton";
 import { motion } from "framer-motion";
 
 interface Props {
@@ -56,7 +57,7 @@ export default function HistoryCard({
       {/* Buttons */}
       <div className="px-6 pb-6 mt-auto">
         <div className="flex flex-col sm:flex-row justify-center sm:justify-end items-center gap-3 sm:gap-2 flex-wrap">
-          <GradientActionButton
+          <PurpleActionButton
             onClick={() =>
               router.push(
                 `/analyze?type=${isTopic ? "topic" : "channel"}&tag=${encodeURIComponent(

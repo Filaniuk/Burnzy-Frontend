@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { GradientActionButton } from "@/components/GradientActionButton";
 import { apiFetch } from "@/lib/api";
 import ConfirmModal from "@/app/pricing/components/ConfirmModal";
+import { PurpleActionButton } from "@/components/PurpleActionButton";
 
 function cn(...classes: Array<string | false | undefined | null>) {
   return classes.filter(Boolean).join(" ");
@@ -216,14 +217,14 @@ export default function TrendIdeasDashboard({
               )}
 
               <div className="flex flex-wrap justify-center mt-5 gap-4">
-                <GradientActionButton
+                <PurpleActionButton
                   label={saved ? "Saved!" : "Save Idea"}
                   size="md"
                   onClick={saveIdea}
                 />
 
-                <GradientActionButton
-                  label="🔍 Explore Full Idea"
+                <PurpleActionButton
+                  label="Explore Full Idea"
                   size="md"
                   onClick={() =>
                     window.open(

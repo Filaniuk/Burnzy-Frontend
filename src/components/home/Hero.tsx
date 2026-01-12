@@ -91,7 +91,7 @@ export default function Hero() {
 
             {/* Image */}
             <Image
-              src="/firsthero.png"
+              src="/firsthero1248.webp"
               alt="Glowing dashboard"
               width={900}
               height={560}

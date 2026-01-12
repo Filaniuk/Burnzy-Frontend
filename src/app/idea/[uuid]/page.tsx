@@ -49,6 +49,7 @@ export default function IdeaDetailPage() {
   const version = Number(searchParams.get("version")) || 1;
   const [tab, setTab] = useState<"brief" | "script">("brief");
   const [data, setData] = useState<VideoContentDetailedResponse["data"] | null>(null);
+  const [meta, setMeta] = useState<VideoContentDetailedResponse["meta"] | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [script, setScript] = useState<ScriptData | null>(null);
@@ -112,54 +113,57 @@ export default function IdeaDetailPage() {
 
 
   useEffect(() => {
-  const exploreBatchUuid = searchParams.get("explore_batch_uuid") || "";
+    const exploreBatchUuid = searchParams.get("explore_batch_uuid") || "";
 
-  // Guard: don’t send invalid requests that produce 422
-  if (!ideaUuid || !tag || !version || Number.isNaN(version)) return;
+    // Guard: don’t send invalid requests that produce 422
+    if (!ideaUuid || !tag || !version || Number.isNaN(version)) return;
 
-  const key = `${ideaUuid}-${tag}-${version}-${exploreBatchUuid}`;
-  if (fetchedIdeas.has(key)) return;
-  fetchedIdeas.add(key);
+    const key = `${ideaUuid}-${tag}-${version}-${exploreBatchUuid}`;
+    if (fetchedIdeas.has(key)) return;
+    fetchedIdeas.add(key);
 
-  cancelRef.current = false;
-  setLoading(true);
+    cancelRef.current = false;
+    setLoading(true);
 
-  (async () => {
-    try {
-      const res = await apiFetch<any>("/api/v1/video_content_detailed", {
-        method: "POST",
-        body: JSON.stringify({
-          channel_tag: tag,
-          idea_uuid: ideaUuid,
-          version,
-          ...(exploreBatchUuid ? { explore_batch_uuid: exploreBatchUuid } : {}),
-        }),
-      });
-
-      if (!res?.data?.video_detail) {
-        throw new Error("Missing detailed video data.");
-      }
-
-      if (!cancelRef.current) setData(res.data);
-    } catch (err: any) {
-      const msg = normalizeError(err, "Failed to load idea details.");
-      if (!cancelRef.current) {
-        setFeedback({
-          show: true,
-          title: "Load Error",
-          description: msg,
-          color: "red",
+    (async () => {
+      try {
+        const res = await apiFetch<any>("/api/v1/video_content_detailed", {
+          method: "POST",
+          body: JSON.stringify({
+            channel_tag: tag,
+            idea_uuid: ideaUuid,
+            version,
+            ...(exploreBatchUuid ? { explore_batch_uuid: exploreBatchUuid } : {}),
+          }),
         });
-      }
-    } finally {
-      if (!cancelRef.current) setLoading(false);
-    }
-  })();
+        if (!res?.data?.video_detail) {
+          throw new Error("Missing detailed video data.");
+        }
 
-  return () => {
-    cancelRef.current = true;
-  };
-}, [ideaUuid, tag, version, searchParams]); // important
+        if (!cancelRef.current) {
+          setData(res.data);
+          setMeta(res.meta);
+        }
+
+      } catch (err: any) {
+        const msg = normalizeError(err, "Failed to load idea details.");
+        if (!cancelRef.current) {
+          setFeedback({
+            show: true,
+            title: "Load Error",
+            description: msg,
+            color: "red",
+          });
+        }
+      } finally {
+        if (!cancelRef.current) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelRef.current = true;
+    };
+  }, [ideaUuid, tag, version, searchParams]); // important
 
 
   const v = useMemo(() => data?.video_detail || null, [data]);
@@ -256,7 +260,11 @@ export default function IdeaDetailPage() {
           <>
             <Suspense fallback={<SectionLoader text="Loading visuals…" />}>
               <div className="flex justify-center flex-wrap gap-6">
-                <IdeaThumbnail v={v} ideaUuid={ideaUuid} />
+                <IdeaThumbnail
+                  v={v}
+                  ideaUuid={ideaUuid}
+                  trendId={meta?.trend_id ?? meta?.trend_id ?? null}
+                />
               </div>
             </Suspense>
 
@@ -365,7 +373,7 @@ function ScriptHeader({ script, loading, onGenerate }: any) {
         </p>
       </div>
 
-      <PurpleActionButton 
+      <PurpleActionButton
         onClick={onGenerate}
         disabled={loading || !!script}
         loading={loading}

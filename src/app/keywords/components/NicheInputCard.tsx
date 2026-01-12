@@ -1,5 +1,6 @@
 "use client";
 
+import { GradientActionButton } from "@/components/GradientActionButton";
 import { motion } from "framer-motion";
 
 type Props = {
@@ -45,14 +46,12 @@ export default function NicheInputCard({ keyword, setKeyword, isLoading, onSubmi
             disabled={isLoading}
           />
 
-          <button
-            type="button"
-            className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-[#6C63FF] to-[#00F5A0] px-6 py-3 font-semibold text-[#0F0E17] shadow-lg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          <GradientActionButton
             onClick={onSubmit}
             disabled={isLoading}
-          >
-            {isLoading ? "Analyzing…" : "Analyze"}
-          </button>
+            loading={isLoading}
+            label="Analyze"
+          />
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-gray-400">

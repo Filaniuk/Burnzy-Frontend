@@ -17,15 +17,8 @@ export default function PreviewFeatures() {
   };
 
   const featureCards = [
-    {
-      img: "/insights.png",
-      tag1: "Channel Insights",
-      tag2: "Health Score",
-      title: "Smart Insights",
-      desc: "Understand your channel like never before. Our AI scans your content, trends, and audience behavior to deliver insights that actually move the needle.",
-    },
-    {
-      img: "/ideas.png",
+        {
+      img: "/ideaexmp.webp",
       tag1: "Detailed Briefs",
       tag2: "Script Generator",
       tag3: "Thumbnail Concepts",
@@ -33,12 +26,20 @@ export default function PreviewFeatures() {
       desc: "Get fresh, data-backed video ideas generated from real-time trends, competitor updates, and audience behavior—tailored to your channel.",
     },
     {
-      img: "/calendar.png",
-      tag1: "Content Plans",
-      tag2: "Production Calendar",
-      tag3: "Workspace Labels",
-      title: "Content plan & Calendar",
-      desc: "Your full content schedule — auto-generated. Plan weeks ahead, stay organized, and publish without burnout. Built to help creators stay consistent and grow.",
+      img: "/thumbdemo123.webp",
+      tag1: "Swap Face",
+      tag2: "Append Text",
+      tag3: "Modify details",
+      title: "Thumbnail Workspace",
+      desc: "Design eye-catching thumbnails in minutes with our tools. Customize text, colors, and images to boost clicks and grow your audience.",
+    },
+            {
+      img: "/nichedemo.webp",
+      tag1: "Evaluate Niches",
+      tag2: "Real-Time Data",
+      tag3: "Score Keywords",
+      title: "Niche Analyzer",
+      desc: "Discover profitable content niches with our Niche Analyzer. Get real-time data on trends, competition, and audience interest to find your perfect content focus.",
     },
   ];
 

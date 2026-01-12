@@ -158,9 +158,8 @@ export default function CreateIdeaModal({
                     Title *
                   </label>
                   <input
-                    className={`w-full bg-[#14131C] border rounded-lg px-3 py-2 text-white outline-none focus:border-[#6C63FF] ${
-                      titleError ? "border-red-500" : "border-[#2E2D39]"
-                    }`}
+                    className={`w-full bg-[#14131C] border rounded-lg px-3 py-2 text-white outline-none focus:border-[#6C63FF] ${titleError ? "border-red-500" : "border-[#2E2D39]"
+                      }`}
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     onBlur={validateTitle}
@@ -202,9 +201,8 @@ export default function CreateIdeaModal({
                       ref={(el) => {
                         dateRef.current = el;
                       }}
-                      className={`w-full bg-[#14131C] border rounded-lg px-3 py-2 pr-10 text-white focus:border-[#6C63FF] ${
-                        dateError ? "border-red-500" : "border-[#2E2D39]"
-                      }`}
+                      className={`w-full bg-[#14131C] border rounded-lg px-3 py-2 pr-10 text-white focus:border-[#6C63FF] ${dateError ? "border-red-500" : "border-[#2E2D39]"
+                        }`}
                       value={scheduledFor}
                       onChange={(e) => setScheduledFor(e.target.value)}
                       onBlur={validateDate}
@@ -241,8 +239,13 @@ export default function CreateIdeaModal({
 
               {/* Buttons */}
               <div className="flex justify-end gap-3 mt-6">
-                <PurpleActionButton label="Cancel" size="md" onClick={onClose} />
-                <GradientActionButton
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 bg-[#2E2D39] rounded-lg hover:bg-[#3B3A4A]"
+                >
+                  Cancel
+                </button>
+                <PurpleActionButton
                   label={loading ? "Saving..." : "Create Idea"}
                   size="md"
                   onClick={submit}

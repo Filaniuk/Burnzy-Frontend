@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import ToggleSwitch from "@/components/ToggleSwitch";
 import Link from "next/link";
+import { GradientActionButton } from "@/components/GradientActionButton";
 
 type Advanced = {
   budget: string;
@@ -57,16 +58,12 @@ export default function ExploreInputCard({
         </div>
 
         <div className="shrink-0">
-          <button
+          <GradientActionButton
             onClick={onSubmit}
             disabled={!canSubmit}
-            className={`px-5 py-2.5 rounded-xl font-semibold shadow-lg transition-all
-              bg-gradient-to-r from-[#6C63FF] to-[#00F5A0] text-black
-              ${canSubmit ? "hover:opacity-90" : "opacity-60 cursor-not-allowed"}
-            `}
-          >
-            {isLoading ? "Exploring..." : "Explore ideas"}
-          </button>
+            loading={isLoading}
+            label="Explore Ideas"
+          />
         </div>
       </div>
 

@@ -1,263 +1,358 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PurpleActionButton } from "@/components/PurpleActionButton";
 
-type IdeaOption = {
+type IdeaSummary = {
   uuid: string;
   title: string;
   thumbnail_concept?: string | null;
-  status?: string;
+  thumbnail_variations?: string[] | null;
   trend_idea_id?: number | null;
-  channel_name?: string | null;
-  created_at?: string | null;
 };
 
-const PAGE_SIZE = 5;
+type Props = {
+  ideas: IdeaSummary[];
+  ideasLoading: boolean;
+  loading: boolean;
+  onGenerate: (
+    idea: IdeaSummary,
+    opts?: { activeIdx?: number; thumbnailConcept?: string | null }
+  ) => Promise<void> | void;
+};
 
 export default function ThumbnailGenerateCard({
-  onGenerate,
-  loading,
   ideas,
   ideasLoading,
-}: {
-  onGenerate: (ideaUuid: string) => void | Promise<void>;
-  loading: boolean;
-  ideas: IdeaOption[];
-  ideasLoading?: boolean;
-}) {
+  loading,
+  onGenerate,
+}: Props) {
   const [selectedUuid, setSelectedUuid] = useState<string>("");
-  const [open, setOpen] = useState(false);
-  const [page, setPage] = useState(0);
+  const [activeIdx, setActiveIdx] = useState(0);
 
-  const totalPages = useMemo(
-    () => (ideas.length ? Math.ceil(ideas.length / PAGE_SIZE) : 0),
-    [ideas.length]
-  );
+  // ---- NEW: Idea search + pagination
+  const [ideaQuery, setIdeaQuery] = useState("");
+  const [ideaPage, setIdeaPage] = useState(1);
+  const PAGE_SIZE = 4;
 
-  // Clamp page if ideas change
-  const currentPage = useMemo(() => {
-    if (!totalPages) return 0;
-    return Math.min(page, totalPages - 1);
-  }, [page, totalPages]);
+  const filteredIdeas = useMemo(() => {
+    const q = ideaQuery.trim().toLowerCase();
+    if (!q) return ideas;
+    return ideas.filter((i) => (i.title || "").toLowerCase().includes(q));
+  }, [ideas, ideaQuery]);
 
-  const pageItems = useMemo(() => {
-    if (!ideas.length) return [];
-    const start = currentPage * PAGE_SIZE;
-    return ideas.slice(start, start + PAGE_SIZE);
-  }, [ideas, currentPage]);
+  const totalPages = useMemo(() => {
+    return Math.max(1, Math.ceil(filteredIdeas.length / PAGE_SIZE));
+  }, [filteredIdeas.length]);
 
-  const selectedIdea = useMemo(
-    () => ideas.find((i) => i.uuid === selectedUuid) || null,
-    [ideas, selectedUuid]
-  );
+  useEffect(() => {
+    // Reset to first page when query changes or idea list changes
+    setIdeaPage(1);
+  }, [ideaQuery, ideas.length]);
 
-  const canSubmit = !!selectedUuid && !loading && !ideasLoading;
+  useEffect(() => {
+    // Clamp page
+    setIdeaPage((p) => Math.min(Math.max(p, 1), totalPages));
+  }, [totalPages]);
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!canSubmit) return;
-    onGenerate(selectedUuid);
-  }
+  const pageIdeas = useMemo(() => {
+    const start = (ideaPage - 1) * PAGE_SIZE;
+    return filteredIdeas.slice(start, start + PAGE_SIZE);
+  }, [filteredIdeas, ideaPage]);
 
-  function handleSelect(idea: IdeaOption) {
-    setSelectedUuid(idea.uuid);
-    setOpen(false);
-  }
+  const selectedIdeaInFiltered = useMemo(() => {
+    if (!selectedUuid) return true;
+    return filteredIdeas.some((i) => i.uuid === selectedUuid);
+  }, [filteredIdeas, selectedUuid]);
 
-  const dropdownDisabled = ideasLoading || loading || !ideas.length;
+  const selectedIdea = useMemo(() => {
+    return ideas.find((i) => i.uuid === selectedUuid) || null;
+  }, [ideas, selectedUuid]);
 
-  const selectedLabel = useMemo(() => {
-    if (!selectedIdea) return "Select an idea…";
-    const parts: string[] = [selectedIdea.title];
-    if (selectedIdea.channel_name) parts.push(`• ${selectedIdea.channel_name}`);
-    return parts.join(" ");
+  const variations: string[] = useMemo(() => {
+    const raw = selectedIdea?.thumbnail_variations;
+    if (!Array.isArray(raw)) return [];
+    return raw.filter((x) => typeof x === "string" && x.trim().length > 0);
   }, [selectedIdea]);
 
+  // Reset active idx when idea changes or variations change
+  useEffect(() => {
+    setActiveIdx(0);
+  }, [selectedUuid]);
+
+  useEffect(() => {
+    if (variations.length === 0) {
+      setActiveIdx(0);
+      return;
+    }
+    setActiveIdx((idx) => (idx >= 0 && idx < variations.length ? idx : 0));
+  }, [variations.length]);
+
+  const activeConcept = useMemo(() => {
+    if (variations.length > 0) {
+      const idx = Math.min(Math.max(activeIdx, 0), variations.length - 1);
+      return variations[idx];
+    }
+    const c = (selectedIdea?.thumbnail_concept || "").trim();
+    return c || "";
+  }, [variations, activeIdx, selectedIdea]);
+
+  const canNavigate = variations.length > 1;
+
+  const goPrev = useCallback(() => {
+    if (!canNavigate) return;
+    setActiveIdx((i) => (i - 1 + variations.length) % variations.length);
+  }, [canNavigate, variations.length]);
+
+  const goNext = useCallback(() => {
+    if (!canNavigate) return;
+    setActiveIdx((i) => (i + 1) % variations.length);
+  }, [canNavigate, variations.length]);
+
+  const handleGenerate = async () => {
+    if (!selectedIdea) return;
+
+    await onGenerate(selectedIdea, {
+      activeIdx: variations.length > 0 ? activeIdx : undefined,
+      thumbnailConcept: activeConcept || null,
+    });
+  };
+
+  const goPrevPage = useCallback(() => {
+    setIdeaPage((p) => Math.max(1, p - 1));
+  }, []);
+
+  const goNextPage = useCallback(() => {
+    setIdeaPage((p) => Math.min(totalPages, p + 1));
+  }, [totalPages]);
+
   return (
-    <section className="rounded-3xl border border-[#2E2D39] bg-gradient-to-br from-[#171622] via-[#141320] to-[#10101A] p-5 md:p-6 flex flex-col md:flex-row gap-5 md:gap-7 items-start shadow-[0_18px_40px_rgba(0,0,0,0.55)]">
-      <div className="flex-1 space-y-3 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-2xl bg-[#6C63FF]/15 border border-[#6C63FF]/50">
-            <Sparkles size={14} className="text-[#C4C2FF]" />
-          </span>
-          <div>
-            <h2 className="text-white text-lg md:text-xl font-semibold">
-              Generate a thumbnail
-            </h2>
-            <p className="text-xs text-neutral-400 mt-0.5">
-              Use one of your existing ideas as the source.
-            </p>
-          </div>
+    <div className="rounded-2xl border border-[#2E2D39] bg-[#14131C]/70 backdrop-blur-xl p-5 md:p-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-white">Generate a Thumbnail</h3>
+          <p className="text-sm text-neutral-400">
+            Pick an idea and select the active thumbnail concept (left/right), then generate.
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-neutral-300">
-              Idea
-            </label>
+        <PurpleActionButton
+          label="Generate Thumbnail"
+          onClick={handleGenerate}
+          loading={loading}
+          disabled={!selectedIdea || ideasLoading}
+        />
+      </div>
 
-            {/* Custom dropdown */}
-            <div className="relative">
-              <button
-                type="button"
-                disabled={dropdownDisabled}
-                onClick={() => {
-                  if (!dropdownDisabled) setOpen((o) => !o);
-                }}
-                className={[
-                  "w-full flex items-center justify-between gap-3 rounded-2xl border px-3 py-2.5 text-sm transition",
-                  "bg-[#0F0E17] border-[#2E2D39] hover:border-[#6C63FF]/60",
-                  dropdownDisabled ? "opacity-60 cursor-not-allowed" : "",
-                ].join(" ")}
-              >
-                <span className="truncate text-left text-white/90">
-                  {ideasLoading
-                    ? "Loading your ideas…"
-                    : !ideas.length
-                    ? "No ideas available yet. Generate ideas first."
-                    : selectedLabel}
-                </span>
-                <div
-                  className={[
-                    "flex h-7 w-7 items-center justify-center rounded-xl border border-[#2E2D39] bg-[#15141F] transition-transform",
-                    open ? "rotate-180" : "",
-                  ].join(" ")}
-                >
-                  <ChevronDown size={14} className="text-neutral-400" />
-                </div>
-              </button>
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        {/* Idea selector (search + paged list) */}
+        <div className="rounded-xl border border-[#2E2D39] bg-[#0F0E17] p-4">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <p className="text-xs uppercase tracking-wide text-neutral-500">Idea</p>
+            <p className="text-xs text-neutral-500">
+              {filteredIdeas.length}/{ideas.length}
+            </p>
+          </div>
 
-              {open && !dropdownDisabled && (
-                <div className="absolute z-30 mt-2 w-full rounded-2xl border border-[#2E2D39] bg-[#0F0E17] shadow-xl overflow-hidden">
-                  {/* Header with pagination */}
-                  <div className="flex items-center justify-between px-3 py-2 border-b border-[#2E2D39] bg-[#141320]">
-                    <div className="text-xs text-neutral-300">
-                      {ideas.length ? (
-                        <>
-                          Your ideas{" "}
-                          <span className="text-neutral-500">
-                            ({ideas.length} total)
-                          </span>
-                        </>
-                      ) : (
-                        "No ideas"
-                      )}
-                    </div>
-                    {totalPages > 1 && (
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setPage((p) => Math.max(0, p - 1))
-                          }
-                          disabled={currentPage === 0}
-                          className={[
-                            "h-7 w-7 flex items-center justify-center rounded-xl border text-xs",
-                            currentPage === 0
-                              ? "border-[#2E2D39] text-neutral-500 cursor-not-allowed opacity-60"
-                              : "border-[#2E2D39] text-neutral-200 hover:border-[#6C63FF]/70",
-                          ].join(" ")}
-                        >
-                          <ChevronLeft size={14} />
-                        </button>
-                        <span className="text-[11px] text-neutral-400 px-1">
-                          {currentPage + 1} / {totalPages}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setPage((p) =>
-                              Math.min(totalPages - 1, p + 1)
-                            )
-                          }
-                          disabled={currentPage >= totalPages - 1}
-                          className={[
-                            "h-7 w-7 flex items-center justify-center rounded-xl border text-xs",
-                            currentPage >= totalPages - 1
-                              ? "border-[#2E2D39] text-neutral-500 cursor-not-allowed opacity-60"
-                              : "border-[#2E2D39] text-neutral-200 hover:border-[#6C63FF]/70",
-                          ].join(" ")}
-                        >
-                          <ChevronRight size={14} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
+          <input
+            value={ideaQuery}
+            onChange={(e) => setIdeaQuery(e.target.value)}
+            placeholder={ideasLoading ? "Loading ideas..." : "Search ideas..."}
+            disabled={ideasLoading}
+            className="w-full rounded-lg border border-[#2E2D39] bg-[#14131C] px-3 py-2 text-sm text-white outline-none placeholder:text-neutral-500 focus:border-[#6C63FF]/60"
+          />
 
-                  {/* Idea list (max 5 per page) */}
-                  <div className="max-h-72 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                    {pageItems.map((idea) => {
-                      const isActive = idea.uuid === selectedUuid;
-                      return (
-                        <button
-                          key={idea.uuid}
-                          type="button"
-                          onClick={() => handleSelect(idea)}
-                          className={[
-                            "w-full flex flex-col items-start px-3 py-2.5 text-left text-sm transition",
-                            isActive
-                              ? "bg-[#6C63FF]/15 border-l-2 border-l-[#6C63FF]"
-                              : "hover:bg-[#1B1A24]",
-                          ].join(" ")}
-                        >
-                          <div className="flex items-center gap-2 w-full">
-                            <span className="flex-1 truncate text-white">
-                              {idea.title}
+          <div className="mt-3 rounded-lg border border-[#2E2D39] bg-[#14131C] overflow-hidden">
+            {ideasLoading ? (
+              <div className="px-3 py-3 text-sm text-neutral-500">Loading ideas…</div>
+            ) : pageIdeas.length === 0 ? (
+              <div className="px-3 py-3 text-sm text-neutral-500">
+                No ideas match your search.
+              </div>
+            ) : (
+              <ul className="max-h-64 overflow-auto">
+                {pageIdeas.map((idea) => {
+                  const active = idea.uuid === selectedUuid;
+                  return (
+                    <li key={idea.uuid}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedUuid(idea.uuid)}
+                        className={`w-full text-left px-3 py-2.5 text-sm transition border-b border-[#2E2D39]/60 last:border-b-0 ${
+                          active
+                            ? "bg-[#6C63FF]/15 text-white"
+                            : "bg-transparent text-neutral-200 hover:bg-white/5"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <span className="leading-snug">{idea.title}</span>
+                          {active && (
+                            <span className="text-[11px] px-2 py-0.5 rounded-full border border-[#6C63FF]/50 text-[#B9B5FF]">
+                              Selected
                             </span>
-                            {idea.channel_name && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#202031] text-neutral-300 shrink-0">
-                                {idea.channel_name}
-                              </span>
-                            )}
-                          </div>
-                          {idea.thumbnail_concept && (
-                            <p className="mt-0.5 text-[11px] text-neutral-400 line-clamp-1">
-                              {idea.thumbnail_concept}
-                            </p>
                           )}
-                        </button>
-                      );
-                    })}
+                        </div>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
 
-                    {!pageItems.length && ideas.length > 0 && (
-                      <div className="px-3 py-3 text-xs text-neutral-500">
-                        No ideas on this page.
-                      </div>
-                    )}
-                  </div>
-                </div>
+          {/* Pagination controls */}
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={goPrevPage}
+              disabled={ideasLoading || ideaPage <= 1}
+              className={`px-3 py-1.5 rounded-lg text-xs border border-[#2E2D39] bg-[#14131C] transition ${
+                ideaPage <= 1 || ideasLoading
+                  ? "opacity-40 cursor-not-allowed text-neutral-400"
+                  : "text-neutral-200 hover:border-[#6C63FF]/50"
+              }`}
+            >
+              Prev
+            </button>
+
+            <div className="flex items-center gap-1.5">
+              {Array.from({ length: Math.min(5, totalPages) }).map((_, idx) => {
+                const windowStart = Math.max(1, Math.min(totalPages - 4, ideaPage - 2));
+                const pageNum = windowStart + idx;
+                if (pageNum > totalPages) return null;
+
+                const active = pageNum === ideaPage;
+                return (
+                  <button
+                    key={pageNum}
+                    type="button"
+                    onClick={() => setIdeaPage(pageNum)}
+                    disabled={ideasLoading}
+                    className={`h-8 w-8 rounded-lg text-xs border transition ${
+                      active
+                        ? "bg-[#6C63FF] border-[#6C63FF] text-white"
+                        : "bg-[#14131C] border-[#2E2D39] text-neutral-200 hover:border-[#6C63FF]/50"
+                    } ${ideasLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                    aria-label={`Go to page ${pageNum}`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+
+              {totalPages > 5 && <span className="text-xs text-neutral-500 px-1">…</span>}
+
+              {totalPages > 5 && (
+                <button
+                  type="button"
+                  onClick={() => setIdeaPage(totalPages)}
+                  disabled={ideasLoading}
+                  className={`h-8 w-8 rounded-lg text-xs border transition ${
+                    ideaPage === totalPages
+                      ? "bg-[#6C63FF] border-[#6C63FF] text-white"
+                      : "bg-[#14131C] border-[#2E2D39] text-neutral-200 hover:border-[#6C63FF]/50"
+                  } ${ideasLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                  aria-label="Go to last page"
+                >
+                  {totalPages}
+                </button>
               )}
             </div>
 
-            {selectedIdea && selectedIdea.thumbnail_concept ? (
-              <div className="pt-1.5">
-                <p className="text-xs text-neutral-400 line-clamp-2">
-                  Thumbnail concept:{" "}
-                  <span className="text-neutral-200">
-                    {selectedIdea.thumbnail_concept}
-                  </span>
-                </p>
+            <button
+              type="button"
+              onClick={goNextPage}
+              disabled={ideasLoading || ideaPage >= totalPages}
+              className={`px-3 py-1.5 rounded-lg text-xs border border-[#2E2D39] bg-[#14131C] transition ${
+                ideaPage >= totalPages || ideasLoading
+                  ? "opacity-40 cursor-not-allowed text-neutral-400"
+                  : "text-neutral-200 hover:border-[#6C63FF]/50"
+              }`}
+            >
+              Next
+            </button>
+          </div>
+
+          {selectedUuid && !selectedIdeaInFiltered && (
+            <p className="mt-2 text-xs text-yellow-300/80">
+              Selected idea is hidden by your search filter.
+            </p>
+          )}
+        </div>
+
+        {/* Concept carousel */}
+        <div className="rounded-xl border border-[#2E2D39] bg-[#0F0E17] p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-neutral-500">Active concept</p>
+              <p className="text-xs text-neutral-400 mt-1">Visual-only; no text overlays.</p>
+            </div>
+
+            {variations.length > 0 && (
+              <div className="text-xs text-neutral-400">
+                {activeIdx + 1}/{variations.length}
               </div>
-            ) : null}
+            )}
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            <PurpleActionButton
-              label={loading ? "Generating…" : "Generate thumbnail"}
-              size="sm"
-              disabled={!canSubmit}
-              loading={loading}
-            />
-          </div>
-        </form>
+          <div className="mt-3 flex items-stretch gap-2">
+            <button
+              type="button"
+              onClick={goPrev}
+              disabled={!canNavigate}
+              className={`shrink-0 w-10 rounded-lg border border-[#2E2D39] bg-[#14131C] flex items-center justify-center transition ${
+                canNavigate ? "hover:border-[#6C63FF]/50" : "opacity-40 cursor-not-allowed"
+              }`}
+              aria-label="Previous concept"
+            >
+              <ChevronLeft size={18} className="text-neutral-200" />
+            </button>
 
-        <p className="text-xs text-neutral-500">
-          Tip: the dropdown shows your ideas in pages of 5. If you don’t see anything,
-          generate some ideas first in your dashboard.
-        </p>
+            <div className="flex-1 rounded-lg border border-[#2E2D39] bg-[#14131C] p-3">
+              {selectedIdea ? (
+                activeConcept ? (
+                  <p className="text-sm text-neutral-200 leading-relaxed">{activeConcept}</p>
+                ) : (
+                  <p className="text-sm text-neutral-500">No concepts available for this idea.</p>
+                )
+              ) : (
+                <p className="text-sm text-neutral-500">Select an idea to see concepts.</p>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={goNext}
+              disabled={!canNavigate}
+              className={`shrink-0 w-10 rounded-lg border border-[#2E2D39] bg-[#14131C] flex items-center justify-center transition ${
+                canNavigate ? "hover:border-[#6C63FF]/50" : "opacity-40 cursor-not-allowed"
+              }`}
+              aria-label="Next concept"
+            >
+              <ChevronRight size={18} className="text-neutral-200" />
+            </button>
+          </div>
+
+          {variations.length > 1 && (
+            <div className="mt-3 flex items-center justify-center gap-2">
+              {variations.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setActiveIdx(i)}
+                  className={`h-2.5 w-2.5 rounded-full border transition ${
+                    i === activeIdx
+                      ? "bg-[#6C63FF] border-[#6C63FF]"
+                      : "bg-transparent border-[#2E2D39] hover:border-[#6C63FF]/60"
+                  }`}
+                  aria-label={`Select concept ${i + 1}`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-    </section>
+    </div>
   );
 }

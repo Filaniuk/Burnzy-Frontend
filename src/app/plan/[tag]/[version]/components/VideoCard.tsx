@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { CalendarDays, Star } from "lucide-react";
 import { GradientActionButton } from "@/components/GradientActionButton";
+import { PurpleActionButton } from "@/components/PurpleActionButton";
 
 interface Props {
   v: any;
@@ -56,7 +57,7 @@ export default function VideoCard({ v, plan }: Props) {
 
       {/* CTA Button */}
       <div className="mt-auto pt-2">
-        <GradientActionButton
+        <PurpleActionButton
           onClick={() =>
             window.open(
               `/idea/${v.uuid}?tag=${encodeURIComponent(plan.channel_tag)}&version=${plan.version}`,

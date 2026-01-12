@@ -44,7 +44,7 @@ export const GradientActionButton: React.FC<GradientActionButtonProps> = ({
       ) : (
         icon && <span className="text-lg">{icon}</span>
       )}
-      {loading ? "Reanalyzing..." : label}
+      {loading ? "Loading..." : label}
     </motion.button>
   );
 };

@@ -105,14 +105,14 @@ export default function TrendIdeasManager({
               )}
 
               <div className="mt-3 flex gap-3">
-                <GradientActionButton
+                <PurpleActionButton
                   label={savedStates[i.uuid] ? "Saved!" : "Save Idea"}
                   size="sm"
                   onClick={() => saveIdea(i)}
                 />
 
-                <GradientActionButton
-                  label="🔍 Explore Full Idea"
+                <PurpleActionButton
+                  label="Explore Full Idea"
                   size="sm"
                   onClick={() =>
                     window.open(

@@ -26,6 +26,9 @@ export type VideoContentDetailedResponse = {
     tone: string;
     video_detail: VideoDetail;
   };
+  meta: {
+    trend_id: number | null;
+  }
 };
 
 export type ScriptData = {

@@ -53,7 +53,7 @@ export default function HowItWorks() {
       </motion.h2>
 
       <p className="text-center text-neutral-300 max-w-2xl mx-auto mb-16">
-        Submit any channel link or topic, let AI do the analysis, and receive your custom
+        Submit any channel link or topic, let our model do the analysis, and receive your custom
         content plan based on real trend data.
       </p>
 

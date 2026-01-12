@@ -1,4 +1,5 @@
 import { GradientActionButton } from "@/components/GradientActionButton";
+import { PurpleActionButton } from "@/components/PurpleActionButton";
 import { easeOut, motion } from "framer-motion";
 
 type AnalysisData = {
@@ -55,10 +56,10 @@ export default function ReportHeader({
                 variants={fadeUp}
                 transition={{ delay: 0.15 }}
             >
-                <GradientActionButton
+                <PurpleActionButton
                     onClick={onReanalyze}
                     loading={reanalyzing}
-                    label="🔁 Reanalyze"
+                    label="Reanalyze 🔁"
                     size="md"
                 />
                 <div

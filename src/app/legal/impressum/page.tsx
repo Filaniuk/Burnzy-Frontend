@@ -52,6 +52,9 @@ export default function ImpressumPage() {
         <section className="mb-8">
           <h2 className="text-2xl font-bold mb-3">VAT / Small Business Status</h2>
           <p className="mb-2">
+            VAT number: <strong>147/108/10843</strong>
+          </p>
+          <p className="mb-2">
             The service provider is a{" "}
             <strong>small business operator according to § 19 UStG</strong>.
           </p>

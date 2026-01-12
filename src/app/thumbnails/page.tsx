@@ -25,6 +25,7 @@ type IdeaSummary = {
   uuid: string;
   title: string;
   thumbnail_concept?: string | null;
+  thumbnail_variations?: string[] | null;
   status?: string;
   trend_idea_id?: number | null;
   channel_name?: string | null;
@@ -93,25 +94,35 @@ export default function ThumbnailsPage() {
     fetchIdeas();
   }, [fetchThumbnails, fetchIdeas]);
 
-  async function onGenerate(ideaUuid: string) {
-    if (!ideaUuid) return;
+  async function onGenerate(
+    idea: IdeaSummary,
+    opts?: { activeIdx?: number; thumbnailConcept?: string | null }
+  ) {
+    if (!idea?.uuid) return;
+
+    const activeIdx = typeof opts?.activeIdx === "number" ? opts!.activeIdx : null;
+    const thumbnailConcept = (opts?.thumbnailConcept || "").trim() || null;
 
     try {
       setGenerating(true);
-      const res = await apiFetch<ThumbnailsResponse>(`/api/v1/generate_thumbnail/${ideaUuid}`, {
+
+      await apiFetch(`/api/v1/generate_thumbnail/${idea.uuid}`, {
         method: "POST",
+        body: JSON.stringify({
+          trend_id: idea.trend_idea_id ?? null, // <-- use trend_idea_id from your latest_full
+          active_idx: activeIdx,
+          thumbnail_concept: thumbnailConcept,
+        }),
       });
 
-      if (res?.data) {
-        // Prepend new items or simply refetch
-        await fetchThumbnails();
-      }
+      await fetchThumbnails();
     } catch (err: any) {
       openModal("Thumbnail generation failed", extractApiError(err), "red");
     } finally {
       setGenerating(false);
     }
   }
+
 
   return (
     <>

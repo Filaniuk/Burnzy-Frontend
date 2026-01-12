@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, UploadCloud } from "lucide-react";
 import type { GeneratedThumbnail } from "@/types/thumbnail";
@@ -9,6 +9,7 @@ import ThumbnailMaskEditor, { ThumbnailMaskEditorHandle } from "./ThumbnailMaskE
 import ThumbnailTextEditor, { ThumbnailTextEditorHandle } from "./ThumbnailTextEditor";
 import { thumbnailFileUrl } from "@/lib/thumbnails";
 import ThumbnailTextEditorS3Wrapped from "./ThumbnailTextEditorS3Wrapped";
+import SkeletonThumb from "./SkeletonThumb";
 
 type Mode = null | "modify" | "swap_face" | "add_text";
 
@@ -33,33 +34,7 @@ type Props = {
   addTextLoading?: boolean;
 };
 
-export default function ThumbnailEditModal({
-  open,
-  item,
-  onClose,
-  onModify,
-  onSwapFace,
-  onAddText,
-  modifyLoading = false,
-  swapLoading = false,
-  addTextLoading = false,
-}: Props) {
-  const [mode, setMode] = useState<Mode>(null);
-  const [localError, setLocalError] = useState<string | null>(null);
-  const { maxWidth, maxHeight } = useViewportImageBox(
-    260, // vertical padding (header + footer + body padding)
-    40   // horizontal margin
-  );
-  const maskRef = useRef<ThumbnailMaskEditorHandle | null>(null);
-  const textRef = useRef<ThumbnailTextEditorHandle | null>(null);
-  const faceFileRef = useRef<HTMLInputElement | null>(null);
-  const [faceFile, setFaceFile] = useState<File | null>(null);
-
-  const [prompt, setPrompt] = useState<string>(
-    "Remove the existing content (or text) and replace it with a clean, natural continuation of the surrounding background. Use textures and lighting consistent with the surrounding area. Do not generate any readable text, words, or typographic marks inside the mask. Outside the masked region, keep the original image unchanged."
-  );
-
-  function useViewportImageBox(paddingY = 220, marginX = 32) {
+function useViewportImageBox(paddingY = 220, marginX = 32) {
   const [box, setBox] = useState({ maxWidth: 0, maxHeight: 0 });
 
   useEffect(() => {
@@ -68,7 +43,6 @@ export default function ThumbnailEditModal({
       const vw = window.innerWidth;
       const vh = window.innerHeight;
 
-      // Tailwind max-w-5xl = 64rem ≈ 1024px (assuming 16px root)
       const MODAL_MAX_W = 1024;
 
       const availableW = Math.max(0, vw - marginX);
@@ -87,16 +61,64 @@ export default function ThumbnailEditModal({
   return box;
 }
 
+export default function ThumbnailEditModal({
+  open,
+  item,
+  onClose,
+  onModify,
+  onSwapFace,
+  onAddText,
+  modifyLoading = false,
+  swapLoading = false,
+  addTextLoading = false,
+}: Props) {
+  const [mode, setMode] = useState<Mode>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  // Preview loading: keep <img> mounted, skeleton overlays until onLoad.
+  const [previewSrc, setPreviewSrc] = useState<string>("");
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgError, setImgError] = useState(false);
+
+  const { maxWidth, maxHeight } = useViewportImageBox(260, 40);
+
+  const maskRef = useRef<ThumbnailMaskEditorHandle | null>(null);
+  const textRef = useRef<ThumbnailTextEditorHandle | null>(null);
+  const faceFileRef = useRef<HTMLInputElement | null>(null);
+  const [faceFile, setFaceFile] = useState<File | null>(null);
+
+  const [prompt, setPrompt] = useState<string>(
+    "Remove the existing content (or text) and replace it with a clean, natural continuation of the surrounding background. Use textures and lighting consistent with the surrounding area. Do not generate any readable text, words, or typographic marks inside the mask. Outside the masked region, keep the original image unchanged."
+  );
+
+  const busy = modifyLoading || swapLoading || addTextLoading;
+
+  const title = item?.title || item?.idea_uuid || "Thumbnail";
+
+  const aspect = useMemo(() => {
+    const w = Number(item?.width || 0);
+    const h = Number(item?.height || 0);
+    if (w > 0 && h > 0) return `${w} / ${h}`;
+    return "16 / 9";
+  }, [item?.width, item?.height]);
 
   // Reset state when opening / changing item
   useEffect(() => {
     if (!open) return;
+
     setMode(null);
     setLocalError(null);
     setFaceFile(null);
     setPrompt(
       "Remove the existing content (or text) and replace it with a clean, natural continuation of the surrounding background. Use textures and lighting consistent with the surrounding area. Do not generate any readable text, words, or typographic marks inside the mask. Outside the masked region, keep the original image unchanged."
     );
+
+    const next = item ? thumbnailFileUrl(item.id) : "";
+    setPreviewSrc(next);
+
+    // show skeleton immediately
+    setImgLoaded(false);
+    setImgError(false);
   }, [open, item?.id]);
 
   useEffect(() => {
@@ -109,17 +131,9 @@ export default function ThumbnailEditModal({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open, onClose]);
 
-  // Use the same-origin /file proxy for editor flows to avoid CORS/canvas tainting.
-  // The public S3/CloudFront URL remains available elsewhere (e.g., external link).
-  const fileHref = item ? thumbnailFileUrl(item.id) : "";
-  const href = fileHref;
-  const title = item?.title || item?.idea_uuid || "Thumbnail";
-
-  const busy = modifyLoading || swapLoading || addTextLoading;
-
   async function applyModify() {
     if (!item) return;
-    if (!href) return;
+    if (!previewSrc) return;
 
     try {
       setLocalError(null);
@@ -143,7 +157,7 @@ export default function ThumbnailEditModal({
 
   async function applySwapFace() {
     if (!item) return;
-    if (!href) return;
+    if (!previewSrc) return;
 
     try {
       setLocalError(null);
@@ -159,8 +173,8 @@ export default function ThumbnailEditModal({
       const swapPrompt =
         prompt?.trim() ||
         "Replace the face of the main subject in the image with the face from the reference image. " +
-        "Keep everything else (background, lighting, colors, composition) as close as possible to the original. " +
-        "Do not add any new text, logos, watermarks, UI elements, or branding.";
+          "Keep everything else (background, lighting, colors, composition) as close as possible to the original. " +
+          "Do not add any new text, logos, watermarks, UI elements, or branding.";
 
       await onSwapFace(item, { mask, faceImage: faceFile, prompt: swapPrompt });
       setMode(null);
@@ -171,7 +185,7 @@ export default function ThumbnailEditModal({
 
   async function applyAddText() {
     if (!item) return;
-    if (!href) return;
+    if (!previewSrc) return;
 
     try {
       setLocalError(null);
@@ -182,7 +196,6 @@ export default function ThumbnailEditModal({
       const blob = await editor.exportCompositedImage();
       const payload = editor.getState();
 
-      // basic validation
       const txt = (payload.text || "").trim();
       if (!txt) throw new Error("Please enter some text.");
 
@@ -216,6 +229,8 @@ export default function ThumbnailEditModal({
     setMode("add_text");
   }
 
+  const canStartEdits = imgLoaded && !!previewSrc && !busy;
+
   return (
     <AnimatePresence>
       {open && item ? (
@@ -228,10 +243,7 @@ export default function ThumbnailEditModal({
           role="dialog"
         >
           {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/70"
-            onClick={() => (!busy ? onClose() : undefined)}
-          />
+          <div className="absolute inset-0 bg-black/70" onClick={() => (!busy ? onClose() : undefined)} />
 
           {/* Modal */}
           <motion.div
@@ -246,8 +258,7 @@ export default function ThumbnailEditModal({
               <div className="min-w-0">
                 <p className="text-white font-semibold truncate">{title}</p>
                 <p className="text-xs text-neutral-400 truncate">
-                  Resolution: {item.width ?? "—"}x{item.height ?? "—"} • Version:{" "}
-                  {item.version}
+                  Resolution: {item.width ?? "—"}x{item.height ?? "—"} • Version: {item.version}
                 </p>
               </div>
 
@@ -277,11 +288,7 @@ export default function ThumbnailEditModal({
                     <span className="inline-flex items-center gap-2 px-3 py-1 rounded-2xl border border-[#00F5A0]/30 bg-[#00F5A0]/10 text-[#00F5A0]">
                       Editing:{" "}
                       <span className="text-neutral-200">
-                        {mode === "modify"
-                          ? "Modify region"
-                          : mode === "swap_face"
-                            ? "Swap face"
-                            : "Add text"}
+                        {mode === "modify" ? "Modify region" : mode === "swap_face" ? "Swap face" : "Add text"}
                       </span>
                     </span>
                   ) : (
@@ -295,74 +302,87 @@ export default function ThumbnailEditModal({
               {/* Content */}
               {mode === null ? (
                 <>
+                  {/* Preview box with stable height (aspect ratio) */}
                   <div className="rounded-2xl border border-[#2E2D39] bg-black/20">
                     <div className="w-full flex items-center justify-center bg-[#0F0E17] p-3">
-                      {href ? (
-                        <img
-                          src={href}
-                          alt={title}
-                          loading="lazy"
-                          style={{
-                            maxWidth: maxWidth || "100%",
-                            maxHeight: maxHeight || "60vh",
-                            width: "100%",
-                            height: "auto",
-                            objectFit: "contain",
-                          }}
-                        />
-                      ) : (
-                        <div className="text-neutral-500 py-10">
-                          No image available
-                        </div>
-                      )}
+                      <div
+                        className="relative w-full rounded-xl overflow-hidden"
+                        style={{
+                          aspectRatio: aspect,
+                          maxWidth: maxWidth || "100%",
+                          maxHeight: maxHeight || undefined,
+                        }}
+                      >
+                        {/* Skeleton overlay */}
+                        {!imgLoaded && !!previewSrc ? <SkeletonThumb /> : null}
+
+                        {/* Actual image */}
+                        {previewSrc ? (
+                          <img
+                            key={previewSrc}
+                            src={previewSrc}
+                            alt={title}
+                            loading="eager"
+                            onLoad={() => {
+                              setImgLoaded(true);
+                              setImgError(false);
+                            }}
+                            onError={() => {
+                              setImgError(true);
+                              setImgLoaded(false);
+                            }}
+                            className={`absolute inset-0 z-0 h-full w-full object-contain transition-opacity duration-200 ${
+                              imgLoaded ? "opacity-100" : "opacity-0"
+                            }`}
+                          />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center text-neutral-500">
+                            No image available
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
+
+                  {imgError ? (
+                    <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-3 text-sm text-yellow-200">
+                      Failed to load the thumbnail preview. You can close and retry.
+                    </div>
+                  ) : null}
 
                   <div className="shrink-0 flex flex-col md:flex-row gap-3">
                     <PurpleActionButton
                       label="Modify region"
                       size="sm"
                       onClick={startModify}
-                      disabled={!href || busy}
+                      disabled={!canStartEdits}
                       className="w-full md:w-auto"
                     />
                     <PurpleActionButton
                       label="Swap face"
                       size="sm"
                       onClick={startSwapFace}
-                      disabled={!href || busy}
+                      disabled={!canStartEdits}
                       className="w-full md:w-auto"
                     />
                     <PurpleActionButton
                       label="Add text"
                       size="sm"
                       onClick={startAddText}
-                      disabled={!href || busy}
+                      disabled={!canStartEdits}
                       className="w-full md:w-auto"
                     />
                   </div>
-
-                  <p className="shrink-0 text-xs text-neutral-400">
-                    Modify region and Swap face use Ideogram edit + your mask. Add
-                    text is local rendering only (no Ideogram).
-                  </p>
                 </>
               ) : null}
 
-              {/* Modify region (generic inpaint) */}
+              {/* Modify region */}
               {mode === "modify" ? (
                 <>
-                  <ThumbnailMaskEditor
-                    ref={maskRef}
-                    imageUrl={href}
-                    maxWidth={maxWidth}
-                    maxHeight={maxHeight}
-                  />
+                  <ThumbnailMaskEditor ref={maskRef} imageUrl={previewSrc} maxWidth={maxWidth} maxHeight={maxHeight} />
 
                   <div className="flex flex-col gap-3">
-                    <label className="text-xs text-neutral-300">
-                      Edit prompt (what should happen inside the green mask?)
-                    </label>
+                    <label className="text-xs text-neutral-300">Edit prompt (what should happen inside the green mask?)</label>
                     <textarea
                       value={prompt}
                       onChange={(e) => setPrompt(e.target.value)}
@@ -377,7 +397,7 @@ export default function ThumbnailEditModal({
                       label={modifyLoading ? "Applying..." : "Apply edit"}
                       size="sm"
                       onClick={applyModify}
-                      disabled={!href || modifyLoading || swapLoading || addTextLoading}
+                      disabled={!previewSrc || modifyLoading || swapLoading || addTextLoading}
                       loading={modifyLoading}
                       className="w-full md:w-auto"
                     />
@@ -398,9 +418,7 @@ export default function ThumbnailEditModal({
               {mode === "swap_face" ? (
                 <>
                   <div className="rounded-2xl border border-[#2E2D39] bg-[#1B1A24] p-4 flex flex-col gap-3">
-                    <p className="text-xs text-neutral-400">
-                      Upload a reference face image (portrait).
-                    </p>
+                    <p className="text-xs text-neutral-400">Upload a reference face image (portrait).</p>
 
                     <input
                       ref={faceFileRef}
@@ -424,15 +442,11 @@ export default function ThumbnailEditModal({
                         Choose face image
                       </button>
 
-                      <span className="text-xs text-neutral-400 truncate">
-                        {faceFile ? faceFile.name : "No file selected"}
-                      </span>
+                      <span className="text-xs text-neutral-400 truncate">{faceFile ? faceFile.name : "No file selected"}</span>
                     </div>
 
                     <div className="flex flex-col gap-2">
-                      <label className="text-xs text-neutral-300">
-                        Edit prompt (how should the face be swapped?)
-                      </label>
+                      <label className="text-xs text-neutral-300">Edit prompt (how should the face be swapped?)</label>
                       <textarea
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
@@ -443,18 +457,14 @@ export default function ThumbnailEditModal({
                     </div>
                   </div>
 
-                  <ThumbnailMaskEditor
-                    ref={maskRef}
-                    imageUrl={href}
-                    maxWidth={maxWidth}
-                    maxHeight={maxHeight} />
+                  <ThumbnailMaskEditor ref={maskRef} imageUrl={previewSrc} maxWidth={maxWidth} maxHeight={maxHeight} />
 
                   <div className="shrink-0 flex flex-col md:flex-row gap-3">
                     <PurpleActionButton
                       label={swapLoading ? "Applying..." : "Swap face"}
                       size="sm"
                       onClick={applySwapFace}
-                      disabled={!href || !faceFile || busy}
+                      disabled={!previewSrc || !faceFile || busy}
                       loading={swapLoading}
                       className="w-full md:w-auto"
                     />
@@ -474,19 +484,14 @@ export default function ThumbnailEditModal({
               {/* Add text */}
               {mode === "add_text" ? (
                 <>
-                  <ThumbnailTextEditorS3Wrapped
-                    ref={textRef}
-                    thumbnailId={item.id}
-                    maxWidth={maxWidth}
-                    maxHeight={maxHeight}
-                  />
+                  <ThumbnailTextEditorS3Wrapped ref={textRef} thumbnailId={item.id} maxWidth={maxWidth} maxHeight={maxHeight} />
 
                   <div className="shrink-0 flex flex-col md:flex-row gap-3">
                     <PurpleActionButton
                       label={addTextLoading ? "Applying..." : "Add text"}
                       size="sm"
                       onClick={applyAddText}
-                      disabled={!href || busy}
+                      disabled={!previewSrc || busy}
                       loading={addTextLoading}
                       className="w-full md:w-auto"
                     />

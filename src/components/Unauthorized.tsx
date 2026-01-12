@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { GradientActionButton } from "./GradientActionButton";
+import { PurpleActionButton } from "./PurpleActionButton";
 
 export default function Unauthorized({
   title = "You need to log in",
@@ -22,7 +23,7 @@ export default function Unauthorized({
 
       <p className="text-neutral-400 max-w-md mb-8">{description}</p>
 
-      <GradientActionButton
+      <PurpleActionButton
         onClick={() => router.push("/login")}
         label="🔐 Go To Login"
         size="md"

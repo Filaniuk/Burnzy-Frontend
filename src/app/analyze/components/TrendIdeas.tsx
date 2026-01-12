@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { extractApiError } from "@/lib/errors";
 import { GradientActionButton } from "@/components/GradientActionButton";
+import { PurpleActionButton } from "@/components/PurpleActionButton";
 
 type Idea = {
   title: string;
@@ -263,8 +264,8 @@ export default function TrendIdeas({ tag, version }: { tag: string; version: num
             </div>
 
             <div className="flex justify-center">
-              <GradientActionButton
-                label="🔍 Explore Full Idea"
+              <PurpleActionButton
+                label="Explore Full Idea"
                 onClick={() =>
                   window.open(
                     `/idea/${idea.uuid}?tag=${response?.data.channel_tag}&version=${response?.meta?.version}`,
