@@ -31,6 +31,7 @@ export function Footer() {
               <Link href="/keywords" className="hover:text-[#00F5A0] transition">Keywords</Link>
               <Link href="/thumbnails" className="hover:text-[#00F5A0] transition">Thumbnails</Link>
               <Link href="/explore" className="hover:text-[#00F5A0] transition">Explore Ideas</Link>
+              <Link href="/calendar" className="hover:text-[#00F5A0] transition">Calendar</Link>
               <Link href="/history" className="hover:text-[#00F5A0] transition">History</Link>
               <Link href="/pricing" className="hover:text-[#00F5A0] transition">Pricing</Link>
               <Link href="/legal" className="hover:text-[#00F5A0] transition">Legal</Link>

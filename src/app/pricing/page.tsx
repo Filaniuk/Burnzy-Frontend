@@ -343,14 +343,20 @@ export default function PricingPage() {
       </div>
 
       {/* Footer */}
-      <footer className="text-neutral-500 text-sm mt-10 text-center">
-        Have any questions or need a custom enterprise plan?{" "}
-        <a
-          href="mailto:contact@burnzy.co"
-          className="text-[#00F5A0] hover:underline"
-        >
-          contact@burnzy.co
-        </a>
+      <footer className="mt-10 w-full max-w-6xl">
+        <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-center sm:px-6">
+          <p className="text-md text-neutral-300">
+            Have questions or need a{" "}
+            <span className="font-semibold text-white">custom enterprise plan</span>?
+          </p>
+
+          <a
+            href="mailto:contact@burnzy.co"
+            className="mt-2 inline-flex items-center justify-center rounded-full border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-400/15 hover:border-emerald-400/50 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+          >
+            contact@burnzy.co
+          </a>
+        </div>
       </footer>
 
       {/* Cancel subscription link */}

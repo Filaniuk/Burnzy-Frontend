@@ -26,7 +26,7 @@ type AdvancedState = {
 export default function ExploreIdeasPage() {
   const { user, loading: authLoading } = useAuth();
   const [creatorInput, setCreatorInput] = useState("");
-  const [advancedOpen, setAdvancedOpen] = useState(true);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [advanced, setAdvanced] = useState<AdvancedState>({
     budget: "",
     location: "",
@@ -114,9 +114,6 @@ export default function ExploreIdeasPage() {
             creatorInput={creatorInput}
             setCreatorInput={(v) => {
               setCreatorInput(v);
-              // Optional: once user starts fixing input, you can clear the attempted flag
-              // so the red state disappears when it becomes valid.
-              // If you prefer it to stay until next submit, remove the next 2 lines.
               if (submitAttempted && v.trim().length >= 8) setSubmitAttempted(false);
             }}
             advancedOpen={advancedOpen}
@@ -125,7 +122,6 @@ export default function ExploreIdeasPage() {
             setAdvanced={setAdvanced}
             isLoading={loading}
             onSubmit={submit}
-            // NEW props
             inputError={showInputError}
             inputErrorText="Please enter at least 8 characters."
           />

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { GeneratedThumbnail } from "@/types/thumbnail";
 import ThumbnailCard from "./ThumbnailCard";
 
-const PAGE_SIZE = 9; // you can tweak this (e.g. 9, 12, 18)
+const PAGE_SIZE = 9;
 
 export default function ThumbnailsGrid({
   items,
@@ -15,7 +15,6 @@ export default function ThumbnailsGrid({
 }) {
   const [page, setPage] = useState(1);
 
-  // Re-clamp the page when items change (e.g. new generations)
   useEffect(() => {
     const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
     setPage((prev) => (prev > totalPages ? totalPages : prev));
@@ -38,10 +37,10 @@ export default function ThumbnailsGrid({
 
   if (!items.length) {
     return (
-      <section className="rounded-3xl border border-[#2E2D39] bg-[#1B1A24] p-8 text-center">
+      <section className="rounded-3xl border border-[#2E2D39] bg-[#1B1A24] p-5 sm:p-8 text-center">
         <p className="text-white font-semibold">No thumbnails yet</p>
         <p className="mt-2 text-sm text-neutral-400">
-          Generate your first thumbnail from an idea to populate this library.
+          Generate a thumbnail from an idea to populate this library.
         </p>
       </section>
     );
@@ -49,14 +48,13 @@ export default function ThumbnailsGrid({
 
   return (
     <section className="space-y-4">
-      {/* Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-3 gap-4">
+      {/* Grid: 1 column on mobile */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {pageItems.map((t) => (
           <ThumbnailCard key={t.id} item={t} onMutate={onMutate} />
         ))}
       </div>
 
-      {/* Pagination controls */}
       {totalPages > 1 && (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-2">
           <div className="flex items-center gap-2">
@@ -65,7 +63,7 @@ export default function ThumbnailsGrid({
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
               className={[
-                "px-3 py-1.5 rounded-xl border text-xs sm:text-sm",
+                "px-3 py-2 sm:py-1.5 rounded-xl border text-xs sm:text-sm",
                 page === 1
                   ? "border-[#2E2D39] text-neutral-500 bg-[#0F0E17] cursor-not-allowed opacity-60"
                   : "border-[#2E2D39] text-neutral-200 bg-[#0F0E17] hover:border-[#00F5A0]/70",
@@ -73,14 +71,13 @@ export default function ThumbnailsGrid({
             >
               Previous
             </button>
+
             <button
               type="button"
-              onClick={() =>
-                setPage((p) => Math.min(totalPages, p + 1))
-              }
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
               className={[
-                "px-3 py-1.5 rounded-xl border text-xs sm:text-sm",
+                "px-3 py-2 sm:py-1.5 rounded-xl border text-xs sm:text-sm",
                 page === totalPages
                   ? "border-[#2E2D39] text-neutral-500 bg-[#0F0E17] cursor-not-allowed opacity-60"
                   : "border-[#2E2D39] text-neutral-200 bg-[#0F0E17] hover:border-[#00F5A0]/70",
@@ -90,21 +87,21 @@ export default function ThumbnailsGrid({
             </button>
           </div>
 
+          {/* Make the status line shorter on mobile */}
           <div className="text-xs text-neutral-400 text-right sm:text-left">
-            Page{" "}
-            <span className="text-neutral-200">
-              {page}
-            </span>{" "}
-            of{" "}
-            <span className="text-neutral-200">
-              {totalPages}
-            </span>{" "}
-            • Showing{" "}
-            <span className="text-neutral-200">
-              {from}-{to}
-            </span>{" "}
-            of{" "}
-            <span className="text-neutral-200">{items.length}</span> thumbnails
+            <span className="sm:hidden">
+              Page <span className="text-neutral-200">{page}</span> /{" "}
+              <span className="text-neutral-200">{totalPages}</span>
+            </span>
+
+            <span className="hidden sm:inline">
+              Page <span className="text-neutral-200">{page}</span> of{" "}
+              <span className="text-neutral-200">{totalPages}</span> • Showing{" "}
+              <span className="text-neutral-200">
+                {from}-{to}
+              </span>{" "}
+              of <span className="text-neutral-200">{items.length}</span> thumbnails
+            </span>
           </div>
         </div>
       )}

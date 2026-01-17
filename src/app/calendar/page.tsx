@@ -20,6 +20,8 @@ import {
   ExternalDropArg,
   EventClickArg,
 } from "@/types/calendar";
+import Unauthorized from "@/components/Unauthorized";
+import { useAuth } from "@/context/AuthContext";
 
 // Central reusable error formatter — consistent across app
 const getErrorMessage = (err: any): string => {
@@ -28,9 +30,8 @@ const getErrorMessage = (err: any): string => {
 
     if (typeof detail === "string") return detail;
 
-    // FastAPI validation errors (array or object)
     if (Array.isArray(detail)) {
-      return detail.map(d => d.msg).join(", ");
+      return detail.map((d) => d.msg).join(", ");
     }
 
     if (typeof detail === "object") {
@@ -46,6 +47,11 @@ const getErrorMessage = (err: any): string => {
 };
 
 export default function CalendarPage() {
+  // -----------------------------------------------------
+  // AUTH
+  // -----------------------------------------------------
+  const { user, loading: authLoading } = useAuth();
+
   // -----------------------------------------------------
   // STATE
   // -----------------------------------------------------
@@ -63,8 +69,8 @@ export default function CalendarPage() {
 
   const [loading, setLoading] = useState(true);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<() => void>(() => { });
-  const [cancelAction, setCancelAction] = useState<() => void>(() => { });
+  const [confirmAction, setConfirmAction] = useState<() => void>(() => {});
+  const [cancelAction, setCancelAction] = useState<() => void>(() => {});
   const [confirmMessage, setConfirmMessage] = useState({
     title: "",
     description: "",
@@ -77,7 +83,7 @@ export default function CalendarPage() {
   // -----------------------------------------------------
   const sidebarRef = useRef<any>(null);
   const draggableRef = useRef<FCDraggable | null>(null);
-  const loadingRef = useRef<true | false>(false); // Avoid duplicate loads
+  const loadingRef = useRef(false); // Avoid duplicate loads
 
   // -----------------------------------------------------
   // UTILS
@@ -110,9 +116,13 @@ export default function CalendarPage() {
   };
 
   // -----------------------------------------------------
-  // LOAD CALENDAR DATA (prod-safe)
+  // LOAD CALENDAR DATA (guarded by auth)
   // -----------------------------------------------------
   const load = useCallback(async () => {
+    // ✅ do nothing until auth is ready AND user exists
+    if (authLoading) return;
+    if (!user) return;
+
     if (loadingRef.current) return;
     loadingRef.current = true;
 
@@ -173,7 +183,7 @@ export default function CalendarPage() {
       loadingRef.current = false;
       setLoading(false);
     }
-  }, []);
+  }, [user, authLoading]);
 
   useEffect(() => {
     load();
@@ -183,6 +193,10 @@ export default function CalendarPage() {
   // ENABLE DRAGGING FROM SIDEBAR
   // -----------------------------------------------------
   useEffect(() => {
+    // ✅ don't init draggable until logged in
+    if (authLoading) return;
+    if (!user) return;
+
     if (!sidebarRef.current) return;
 
     // Cleanup previous draggable
@@ -202,7 +216,7 @@ export default function CalendarPage() {
       draggableRef.current?.destroy();
       draggableRef.current = null;
     };
-  }, [unscheduled]);
+  }, [unscheduled, user, authLoading]);
 
   // -----------------------------------------------------
   // EVENT MOVED INSIDE CALENDAR
@@ -303,7 +317,28 @@ export default function CalendarPage() {
     .slice(0, 5);
 
   // -----------------------------------------------------
-  // RENDER
+  // RENDER STATES
+  // -----------------------------------------------------
+  if (authLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center text-neutral-400">
+        Loading calendar...
+      </div>
+    );
+  }
+
+  // ✅ now it's safe to return Unauthorized AFTER hooks are declared
+  if (!user) {
+    return (
+      <Unauthorized
+        title="Login Required"
+        description="Login is required to access this page."
+      />
+    );
+  }
+
+  // -----------------------------------------------------
+  // RENDER UI
   // -----------------------------------------------------
   return (
     <div
@@ -317,7 +352,6 @@ export default function CalendarPage() {
         bg-[#0F0E17]
       "
     >
-      {/* Sidebar – stacks above calendar on mobile */}
       <div className="w-full lg:w-auto">
         <CalendarSidebar
           sidebarRef={sidebarRef}
@@ -332,7 +366,6 @@ export default function CalendarPage() {
         />
       </div>
 
-      {/* Calendar – full width on mobile */}
       <div className="flex-1 min-w-0">
         <CalendarView
           events={events}
@@ -342,7 +375,6 @@ export default function CalendarPage() {
         />
       </div>
 
-      {/* Modals */}
       {modalType === "schedule" && (
         <ScheduleModal
           close={() => setModalType(null)}
@@ -372,3 +404,4 @@ export default function CalendarPage() {
     </div>
   );
 }
+          

@@ -1,48 +1,46 @@
 export const PROMO_ACTIVE = true;
 
 export const PLANS = [
-  // -----------------------------
-  // FREE PLAN
-  // -----------------------------
   {
     name: "Free",
     price: 0,
     promoPrice: 0,
     description: "Perfect to try out Burnzy with limited monthly access.",
     features: [
-      "3 Topic Analyses / month",
-      "3 Channel Analyses / month",
-      "3 Channel Insights reports / month",
-      "4 Trend Idea generations / month",
-      "4 Content Plans / month",
-      "4 Detailed Video Breakdowns / month",
-      "4 AI Video Scripts / month",
-      "6 Thumbnail generations / month",
+      "2 Topic Analyses / month",
+      "2 Channel Analyses / month",
+      "2 Niche Analyses / month",
+      "1 Channel Insights report / month",
+      "2 Trend Idea generations / month",
+      "1 Content Plan / month",
+      "1 Detailed Video Breakdown / month",
+      "2 Video Scripts / month",
+      "2 Thumbnail generations / month",
+      "2 Thumbnail edits / month",
+      "1 Face swap / month",
       "Basic community support",
     ],
     buttonText: "Start for Free",
     highlight: false,
   },
-
-  // -----------------------------
-  // PRO PLAN
-  // -----------------------------
   {
     name: "Pro",
-    price: 34.99,          
-    promoPrice: 14.99,     
-    description:
-      "For creators & marketers producing content consistently.",
+    price: 21.99,
+    promoPrice: 19.99,
+    description: "For creators & marketers producing content consistently.",
     features: [
-      "20 Topic Analyses / month",
-      "50 Channel Analyses / month",
-      "70 Channel Insights reports / month",
-      "50 Trend Idea generations / month",
-      "50 Content Plans / month",
-      "50 Detailed Video Breakdowns / month",
-      "50 AI Video Scripts / month",
-      "100 Thumbnail generations / month",
-      "Faster processing priority",
+      "15 Topic Analyses / month",
+      "15 Channel Analyses / month",
+      "15 Niche Analyses / month",
+      "15 Channel Insights reports / month",
+      "10 Trend Idea generations / month",
+      "15 Extra Trend Ideas refills / month",
+      "4 Content Plans / month",
+      "15 Detailed Video Breakdowns / month",
+      "25 Video Scripts / month",
+      "60 Thumbnail generations / month",
+      "20 Thumbnail edits / month",
+      "10 Face swaps / month",
       "Access to all AI features",
       "Email support",
     ],
@@ -50,30 +48,28 @@ export const PLANS = [
     highlight: true,
   },
 
-  // -----------------------------
-  // BUSINESS PLAN
-  // -----------------------------
   {
-    name: "Business",
-    price: 149.99,         
-    promoPrice: 84.99,     
-    description:
-      "For agencies, production teams, and businesses scaling content output.",
+    name: "Ultra",
+    price: 59.99,
+    promoPrice: 49.99,
+    description: "Maximum self-serve capacity for power users scaling output.",
     features: [
-      "120 Topic Analyses / month",
-      "300 Channel Analyses / month",
-      "420 Channel Insights reports / month",
-      "300 Trend Idea generations / month",
-      "300 Content Plans / month",
-      "300 Detailed Video Breakdowns / month",
-      "300 AI Video Scripts / month",
-      "600 Thumbnail generations / month",
+      "35 Topic Analyses / month",
+      "35 Channel Analyses / month",
+      "35 Niche Analyses / month",
+      "35 Channel Insights reports / month",
+      "35 Trend Idea generations / month",
+      "25 Extra Trend Ideas refills / month",
+      "10 Content Plans / month",
+      "30 Detailed Video Breakdowns / month",
+      "60 Video Scripts / month",
+      "150 Thumbnail generations / month",
+      "40 Thumbnail edits / month",
+      "10 Face swaps / month",
       "Highest processing priority",
-      "Advanced analytics & reporting",
-      "Dedicated account manager",
       "Priority support",
     ],
-    buttonText: "Upgrade to Business",
+    buttonText: "Upgrade to Ultra",
     highlight: false,
   },
 ];

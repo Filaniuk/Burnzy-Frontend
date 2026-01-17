@@ -31,7 +31,6 @@ export default function ThumbnailGenerateCard({
   const [selectedUuid, setSelectedUuid] = useState<string>("");
   const [activeIdx, setActiveIdx] = useState(0);
 
-  // ---- NEW: Idea search + pagination
   const [ideaQuery, setIdeaQuery] = useState("");
   const [ideaPage, setIdeaPage] = useState(1);
   const PAGE_SIZE = 4;
@@ -47,12 +46,11 @@ export default function ThumbnailGenerateCard({
   }, [filteredIdeas.length]);
 
   useEffect(() => {
-    // Reset to first page when query changes or idea list changes
     setIdeaPage(1);
   }, [ideaQuery, ideas.length]);
 
   useEffect(() => {
-    // Clamp page
+    // Clamp
     setIdeaPage((p) => Math.min(Math.max(p, 1), totalPages));
   }, [totalPages]);
 
@@ -76,7 +74,6 @@ export default function ThumbnailGenerateCard({
     return raw.filter((x) => typeof x === "string" && x.trim().length > 0);
   }, [selectedIdea]);
 
-  // Reset active idx when idea changes or variations change
   useEffect(() => {
     setActiveIdx(0);
   }, [selectedUuid]);
@@ -128,29 +125,36 @@ export default function ThumbnailGenerateCard({
   }, [totalPages]);
 
   return (
-    <div className="rounded-2xl border border-[#2E2D39] bg-[#14131C]/70 backdrop-blur-xl p-5 md:p-6">
+    <div className="w-full max-w-3xl mx-auto rounded-2xl border border-[#2E2D39] bg-[#14131C]/70 backdrop-blur-xl p-4 sm:p-5 md:p-6">
+      {/* Header */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-white">Generate a Thumbnail</h3>
-          <p className="text-sm text-neutral-400">
-            Pick an idea and select the active thumbnail concept (left/right), then generate.
+        <div className="min-w-0">
+          <h3 className="text-base sm:text-lg font-semibold text-white">
+            Generate a Thumbnail
+          </h3>
+          <p className="text-sm text-neutral-400 leading-snug">
+            Pick an idea, choose the active concept (left/right), then generate.
           </p>
         </div>
 
-        <PurpleActionButton
-          label="Generate Thumbnail"
-          onClick={handleGenerate}
-          loading={loading}
-          disabled={!selectedIdea || ideasLoading}
-        />
+        {/* CTA: full width on mobile */}
+        <div className="w-full md:w-auto">
+          <PurpleActionButton
+            label="Generate Thumbnail"
+            onClick={handleGenerate}
+            loading={loading}
+            disabled={!selectedIdea || ideasLoading}
+          />
+        </div>
       </div>
 
+      {/* Content */}
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        {/* Idea selector (search + paged list) */}
+        {/* Idea selector */}
         <div className="rounded-xl border border-[#2E2D39] bg-[#0F0E17] p-4">
-          <div className="flex items-center justify-between gap-3 mb-2">
+          <div className="flex items-center justify-between gap-3 mb-2 min-w-0">
             <p className="text-xs uppercase tracking-wide text-neutral-500">Idea</p>
-            <p className="text-xs text-neutral-500">
+            <p className="text-xs text-neutral-500 shrink-0">
               {filteredIdeas.length}/{ideas.length}
             </p>
           </div>
@@ -171,7 +175,7 @@ export default function ThumbnailGenerateCard({
                 No ideas match your search.
               </div>
             ) : (
-              <ul className="max-h-64 overflow-auto">
+              <ul className="max-h-56 sm:max-h-64 overflow-auto">
                 {pageIdeas.map((idea) => {
                   const active = idea.uuid === selectedUuid;
                   return (
@@ -185,10 +189,12 @@ export default function ThumbnailGenerateCard({
                             : "bg-transparent text-neutral-200 hover:bg-white/5"
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <span className="leading-snug">{idea.title}</span>
+                        <div className="flex items-start justify-between gap-3 min-w-0">
+                          <span className="leading-snug break-words min-w-0">
+                            {idea.title}
+                          </span>
                           {active && (
-                            <span className="text-[11px] px-2 py-0.5 rounded-full border border-[#6C63FF]/50 text-[#B9B5FF]">
+                            <span className="shrink-0 text-[11px] px-2 py-0.5 rounded-full border border-[#6C63FF]/50 text-[#B9B5FF]">
                               Selected
                             </span>
                           )}
@@ -201,13 +207,13 @@ export default function ThumbnailGenerateCard({
             )}
           </div>
 
-          {/* Pagination controls */}
-          <div className="mt-3 flex items-center justify-between gap-3">
+          {/* Simple pagination (mobile + desktop): Prev | Page X/Y | Next */}
+          <div className="mt-3 flex items-center justify-between gap-2">
             <button
               type="button"
               onClick={goPrevPage}
               disabled={ideasLoading || ideaPage <= 1}
-              className={`px-3 py-1.5 rounded-lg text-xs border border-[#2E2D39] bg-[#14131C] transition ${
+              className={`shrink-0 px-3 py-2 rounded-lg text-xs sm:text-sm border border-[#2E2D39] bg-[#14131C] transition ${
                 ideaPage <= 1 || ideasLoading
                   ? "opacity-40 cursor-not-allowed text-neutral-400"
                   : "text-neutral-200 hover:border-[#6C63FF]/50"
@@ -216,55 +222,16 @@ export default function ThumbnailGenerateCard({
               Prev
             </button>
 
-            <div className="flex items-center gap-1.5">
-              {Array.from({ length: Math.min(5, totalPages) }).map((_, idx) => {
-                const windowStart = Math.max(1, Math.min(totalPages - 4, ideaPage - 2));
-                const pageNum = windowStart + idx;
-                if (pageNum > totalPages) return null;
-
-                const active = pageNum === ideaPage;
-                return (
-                  <button
-                    key={pageNum}
-                    type="button"
-                    onClick={() => setIdeaPage(pageNum)}
-                    disabled={ideasLoading}
-                    className={`h-8 w-8 rounded-lg text-xs border transition ${
-                      active
-                        ? "bg-[#6C63FF] border-[#6C63FF] text-white"
-                        : "bg-[#14131C] border-[#2E2D39] text-neutral-200 hover:border-[#6C63FF]/50"
-                    } ${ideasLoading ? "opacity-50 cursor-not-allowed" : ""}`}
-                    aria-label={`Go to page ${pageNum}`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-
-              {totalPages > 5 && <span className="text-xs text-neutral-500 px-1">…</span>}
-
-              {totalPages > 5 && (
-                <button
-                  type="button"
-                  onClick={() => setIdeaPage(totalPages)}
-                  disabled={ideasLoading}
-                  className={`h-8 w-8 rounded-lg text-xs border transition ${
-                    ideaPage === totalPages
-                      ? "bg-[#6C63FF] border-[#6C63FF] text-white"
-                      : "bg-[#14131C] border-[#2E2D39] text-neutral-200 hover:border-[#6C63FF]/50"
-                  } ${ideasLoading ? "opacity-50 cursor-not-allowed" : ""}`}
-                  aria-label="Go to last page"
-                >
-                  {totalPages}
-                </button>
-              )}
-            </div>
+            <span className="min-w-0 text-center text-xs sm:text-sm text-neutral-500">
+              Page <span className="text-neutral-200">{ideaPage}</span> /{" "}
+              <span className="text-neutral-200">{totalPages}</span>
+            </span>
 
             <button
               type="button"
               onClick={goNextPage}
               disabled={ideasLoading || ideaPage >= totalPages}
-              className={`px-3 py-1.5 rounded-lg text-xs border border-[#2E2D39] bg-[#14131C] transition ${
+              className={`shrink-0 px-3 py-2 rounded-lg text-xs sm:text-sm border border-[#2E2D39] bg-[#14131C] transition ${
                 ideaPage >= totalPages || ideasLoading
                   ? "opacity-40 cursor-not-allowed text-neutral-400"
                   : "text-neutral-200 hover:border-[#6C63FF]/50"
@@ -283,14 +250,18 @@ export default function ThumbnailGenerateCard({
 
         {/* Concept carousel */}
         <div className="rounded-xl border border-[#2E2D39] bg-[#0F0E17] p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-neutral-500">Active concept</p>
-              <p className="text-xs text-neutral-400 mt-1">Visual-only; no text overlays.</p>
+          <div className="flex items-center justify-between gap-3 min-w-0">
+            <div className="min-w-0">
+              <p className="text-xs uppercase tracking-wide text-neutral-500">
+                Active concept
+              </p>
+              <p className="text-xs text-neutral-400 mt-1">
+                Visual-only; no text overlays.
+              </p>
             </div>
 
             {variations.length > 0 && (
-              <div className="text-xs text-neutral-400">
+              <div className="shrink-0 text-xs text-neutral-400">
                 {activeIdx + 1}/{variations.length}
               </div>
             )}
@@ -309,15 +280,21 @@ export default function ThumbnailGenerateCard({
               <ChevronLeft size={18} className="text-neutral-200" />
             </button>
 
-            <div className="flex-1 rounded-lg border border-[#2E2D39] bg-[#14131C] p-3">
+            <div className="flex-1 min-w-0 rounded-lg border border-[#2E2D39] bg-[#14131C] p-3">
               {selectedIdea ? (
                 activeConcept ? (
-                  <p className="text-sm text-neutral-200 leading-relaxed">{activeConcept}</p>
+                  <p className="text-sm text-neutral-200 leading-relaxed break-words">
+                    {activeConcept}
+                  </p>
                 ) : (
-                  <p className="text-sm text-neutral-500">No concepts available for this idea.</p>
+                  <p className="text-sm text-neutral-500">
+                    No concepts available for this idea.
+                  </p>
                 )
               ) : (
-                <p className="text-sm text-neutral-500">Select an idea to see concepts.</p>
+                <p className="text-sm text-neutral-500">
+                  Select an idea to see concepts.
+                </p>
               )}
             </div>
 

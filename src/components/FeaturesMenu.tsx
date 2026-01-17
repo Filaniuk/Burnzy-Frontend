@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, Search, Image as ImageIcon, IndentIncrease, LightbulbIcon } from "lucide-react";
+import { ChevronDown, Search, Image as ImageIcon, IndentIncrease, LightbulbIcon, Calendar } from "lucide-react";
 
 export default function FeaturesMenu() {
   const [open, setOpen] = useState(false);
@@ -27,6 +27,12 @@ export default function FeaturesMenu() {
         href: "/explore",
         Icon: LightbulbIcon,
         description: "Create professional ideas that actually work.",
+      },
+      {
+        label: "Calendar",
+        href: "/calendar",
+        Icon: Calendar,
+        description: "Plan and schedule your content effectively.",
       },
     ],
     []

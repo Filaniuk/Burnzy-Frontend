@@ -13,15 +13,10 @@ function cn(...classes: Array<string | false | undefined | null>) {
 
 function formatLabel(format?: string) {
   const f = (format || "").toLowerCase();
-
   if (f === "shorts" || f === "short") return "Shorts";
   if (f === "long_form" || f === "longform" || f === "long") return "Long-form";
-
-  // fallback: prettify snake_case / kebab-case
   return f
-    ? f
-        .replace(/[_-]+/g, " ")
-        .replace(/\b\w/g, (c) => c.toUpperCase())
+    ? f.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
     : "Format";
 }
 
@@ -74,11 +69,7 @@ export default function TrendIdeasDashboard({
   const validIdeas = ideas.filter(isValidIdea);
 
   if (!validIdeas.length) {
-    return (
-      <div className="text-center text-neutral-500 mt-6">
-        No trend ideas found.
-      </div>
-    );
+    return <div className="text-center text-neutral-500 mt-6">No trend ideas found.</div>;
   }
 
   const safeIndex = Math.min(currentIndex, validIdeas.length - 1);
@@ -131,34 +122,52 @@ export default function TrendIdeasDashboard({
           animate="center"
           exit="exit"
           transition={{ duration: 0.35, ease: easeOut }}
-          className="relative w-full max-w-3xl mx-auto bg-[#0F0E17] rounded-2xl border border-[#2E2D39] shadow-2xl py-8 sm:py-10 mt-6"
+          className="relative w-full max-w-3xl mx-auto bg-[#0F0E17] rounded-2xl border border-[#2E2D39] shadow-2xl py-6 sm:py-8 mt-6"
         >
-          {/* Arrows (Desktop Only) */}
+          {/* DESKTOP NAV (outside card) */}
           <div className="hidden md:block">
             <button
               onClick={prevIdea}
               aria-label="Previous idea"
-              className="absolute left-[-70px] top-1/2 -translate-y-1/2 bg-[#2E2D39] hover:bg-[#3B3A4A] p-3 rounded-full text-white shadow-lg transition"
+              className="absolute left-[-60px] top-1/2 -translate-y-1/2 bg-[#2E2D39] hover:bg-[#3B3A4A] p-3 rounded-full text-white shadow-lg transition"
             >
-              <ChevronLeft size={22} />
+              <ChevronLeft size={24} />
             </button>
             <button
               onClick={nextIdea}
               aria-label="Next idea"
-              className="absolute right-[-70px] top-1/2 -translate-y-1/2 bg-[#2E2D39] hover:bg-[#3B3A4A] p-3 rounded-full text-white shadow-lg transition"
+              className="absolute right-[-60px] top-1/2 -translate-y-1/2 bg-[#2E2D39] hover:bg-[#3B3A4A] p-3 rounded-full text-white shadow-lg transition"
             >
-              <ChevronRight size={22} />
+              <ChevronRight size={24} />
             </button>
           </div>
 
-          {/* Mobile counter */}
-          <div className="md:hidden px-6 mb-3 text-sm text-neutral-500">
-            {safeIndex + 1} / {validIdeas.length}
+          {/* MOBILE NAV (visible + simple) */}
+          <div className="flex items-center justify-between gap-3 md:hidden px-5 sm:px-6 mb-4">
+            <button
+              onClick={prevIdea}
+              aria-label="Previous idea"
+              className="shrink-0 bg-[#2E2D39] hover:bg-[#3B3A4A] text-white rounded-full p-2 shadow-md transition"
+            >
+              <ChevronLeft size={20} />
+            </button>
+
+            <span className="text-sm text-neutral-400">
+              {safeIndex + 1} / {validIdeas.length}
+            </span>
+
+            <button
+              onClick={nextIdea}
+              aria-label="Next idea"
+              className="shrink-0 bg-[#2E2D39] hover:bg-[#3B3A4A] text-white rounded-full p-2 shadow-md transition"
+            >
+              <ChevronRight size={20} />
+            </button>
           </div>
 
           {/* Content */}
           <div className="flex flex-col w-full">
-            {/* EDGE-TO-EDGE THUMBNAIL (no border) */}
+            {/* Thumbnail */}
             <div className="relative w-full h-[220px] sm:h-[280px] overflow-hidden shadow-lg">
               {imageUrl ? (
                 <div
@@ -171,10 +180,8 @@ export default function TrendIdeasDashboard({
                 </div>
               )}
 
-              {/* Readability gradient */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
 
-              {/* Bottom light spill */}
               <div className="absolute inset-x-0 bottom-0 h-[55%] pointer-events-none">
                 <div
                   className="absolute inset-0 blur-2xl opacity-95"
@@ -185,7 +192,6 @@ export default function TrendIdeasDashboard({
                 />
               </div>
 
-              {/* Centered thumbnail text */}
               {idea.thumbnail_mockup_text ? (
                 <div className="absolute inset-0 flex items-center justify-center px-6">
                   <div
@@ -200,28 +206,24 @@ export default function TrendIdeasDashboard({
                 </div>
               ) : null}
 
-              {/* Format chip (top-left) */}
               <div className="absolute top-4 left-4 bg-white/10 text-white px-3 py-1 text-xs rounded-full border border-white/15 font-semibold shadow-sm backdrop-blur">
                 {formatLabel(idea.format)}
               </div>
 
-              {/* Score chip (top-right) */}
               <div className="absolute top-4 right-4 bg-[#00F5A0]/20 text-[#00F5A0] px-3 py-1 text-xs rounded-full border border-[#00F5A0]/40 font-semibold shadow-sm">
                 {idea.trend_score}/10
               </div>
             </div>
 
-            {/* PADDED TEXT */}
-            <div className="px-6 mt-6 text-left w-full">
-              <h3 className="text-lg sm:text-xl font-bold text-white leading-snug">
+            {/* Text */}
+            <div className="px-5 sm:px-6 mt-6 text-left w-full">
+              <h3 className="text-lg sm:text-xl font-bold text-white leading-snug break-words">
                 {idea.title}
               </h3>
 
               <div className="bg-[#14131C] border border-[#2E2D39] rounded-xl p-4 mt-4">
-                <h4 className="text-[#6C63FF] font-semibold mb-1">
-                  🤔 Why this idea works
-                </h4>
-                <p className="text-neutral-300 text-sm leading-relaxed">
+                <h4 className="text-[#6C63FF] font-semibold mb-1">🤔 Why this idea works</h4>
+                <p className="text-neutral-300 text-sm leading-relaxed break-words">
                   {idea.why_this_idea}
                 </p>
               </div>
@@ -232,25 +234,48 @@ export default function TrendIdeasDashboard({
                 </p>
               )}
 
-              <div className="flex flex-wrap justify-center mt-5 gap-4">
-                <PurpleActionButton
-                  label={saved ? "Saved!" : "Save Idea"}
-                  size="md"
-                  onClick={saveIdea}
-                />
+              {/* Actions: stack on mobile, row on sm+; size sm on mobile */}
+              <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center sm:gap-4">
+                <div className="w-full sm:w-auto">
+                  <div className="sm:hidden">
+                    <PurpleActionButton
+                      label={saved ? "Saved!" : "Save Idea"}
+                      size="sm"
+                      onClick={saveIdea}
+                    />
+                  </div>
+                  <div className="hidden sm:block">
+                    <PurpleActionButton
+                      label={saved ? "Saved!" : "Save Idea"}
+                      size="md"
+                      onClick={saveIdea}
+                    />
+                  </div>
+                </div>
 
-                <PurpleActionButton
-                  label="Explore Full Idea"
-                  size="md"
-                  onClick={() =>
-                    window.open(
-                      `/idea/${idea.uuid}?tag=${tag}&version=${version}`,
-                      "_blank"
-                    )
-                  }
-                />
+                <div className="w-full sm:w-auto">
+                  <div className="sm:hidden">
+                    <PurpleActionButton
+                      label="Explore Full Idea"
+                      size="sm"
+                      onClick={() =>
+                        window.open(`/idea/${idea.uuid}?tag=${tag}&version=${version}`, "_blank")
+                      }
+                    />
+                  </div>
+                  <div className="hidden sm:block">
+                    <PurpleActionButton
+                      label="Explore Full Idea"
+                      size="md"
+                      onClick={() =>
+                        window.open(`/idea/${idea.uuid}?tag=${tag}&version=${version}`, "_blank")
+                      }
+                    />
+                  </div>
+                </div>
               </div>
 
+              {/* Optional: counter at bottom (mobile) */}
               <div className="mt-4 text-neutral-500 text-sm md:hidden text-center">
                 {safeIndex + 1} / {validIdeas.length}
               </div>
@@ -259,7 +284,6 @@ export default function TrendIdeasDashboard({
         </motion.section>
       </AnimatePresence>
 
-      {/* ERROR MODAL */}
       <ConfirmModal
         show={errorOpen}
         title="Trend Idea Error"

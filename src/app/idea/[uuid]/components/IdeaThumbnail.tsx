@@ -211,6 +211,9 @@ export default function IdeaThumbnail({ v, ideaUuid, trendId }: Props) {
               <ChevronRight size={18} className="text-neutral-200" />
             </button>
           </div>
+          <p className="text-xs text-neutral-400">
+            You can swap face, modify, add or remove elements in the workspace.
+          </p>
 
           {variations.length > 1 && (
             <div className="mt-3 flex items-center justify-center gap-2">

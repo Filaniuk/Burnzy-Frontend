@@ -88,7 +88,7 @@ export default function ThumbnailEditModal({
   const [faceFile, setFaceFile] = useState<File | null>(null);
 
   const [prompt, setPrompt] = useState<string>(
-    "Remove the existing content (or text) and replace it with a clean, natural continuation of the surrounding background. Use textures and lighting consistent with the surrounding area. Do not generate any readable text, words, or typographic marks inside the mask. Outside the masked region, keep the original image unchanged."
+    "Remove the selected object"
   );
 
   const busy = modifyLoading || swapLoading || addTextLoading;
@@ -110,7 +110,7 @@ export default function ThumbnailEditModal({
     setLocalError(null);
     setFaceFile(null);
     setPrompt(
-      "Remove the existing content (or text) and replace it with a clean, natural continuation of the surrounding background. Use textures and lighting consistent with the surrounding area. Do not generate any readable text, words, or typographic marks inside the mask. Outside the masked region, keep the original image unchanged."
+      "Remove the selected object"
     );
 
     const next = item ? thumbnailFileUrl(item.id) : "";
@@ -146,8 +146,7 @@ export default function ThumbnailEditModal({
 
       const finalPrompt =
         prompt?.trim() ||
-        "Remove the existing content (or text) and replace it with a clean, natural continuation of the surrounding background. Use textures and lighting consistent with the surrounding area. Do not generate any readable text, words, or typographic marks inside the mask. Outside the masked region, keep the original image unchanged.";
-
+        "Remove the selected object"
       await onModify(item, { mask, prompt: finalPrompt });
       setMode(null);
     } catch (e: any) {
@@ -173,8 +172,8 @@ export default function ThumbnailEditModal({
       const swapPrompt =
         prompt?.trim() ||
         "Replace the face of the main subject in the image with the face from the reference image. " +
-          "Keep everything else (background, lighting, colors, composition) as close as possible to the original. " +
-          "Do not add any new text, logos, watermarks, UI elements, or branding.";
+        "Keep everything else (background, lighting, colors, composition) as close as possible to the original. " +
+        "Do not add any new text, logos, watermarks, UI elements, or branding.";
 
       await onSwapFace(item, { mask, faceImage: faceFile, prompt: swapPrompt });
       setMode(null);
@@ -210,7 +209,7 @@ export default function ThumbnailEditModal({
     setLocalError(null);
     setMode("modify");
     setPrompt(
-      "Remove the existing content (or text) and replace it with a clean, natural continuation of the surrounding background. Use textures and lighting consistent with the surrounding area. Do not generate any readable text, words, or typographic marks inside the mask. Outside the masked region, keep the original image unchanged."
+      "Remove the selected object"
     );
     setTimeout(() => maskRef.current?.clear(), 0);
   }
@@ -331,9 +330,8 @@ export default function ThumbnailEditModal({
                               setImgError(true);
                               setImgLoaded(false);
                             }}
-                            className={`absolute inset-0 z-0 h-full w-full object-contain transition-opacity duration-200 ${
-                              imgLoaded ? "opacity-100" : "opacity-0"
-                            }`}
+                            className={`absolute inset-0 z-0 h-full w-full object-contain transition-opacity duration-200 ${imgLoaded ? "opacity-100" : "opacity-0"
+                              }`}
                           />
                         ) : (
                           <div className="absolute inset-0 flex items-center justify-center text-neutral-500">

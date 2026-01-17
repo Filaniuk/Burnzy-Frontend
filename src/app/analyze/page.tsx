@@ -276,7 +276,7 @@ export default function AnalyzePage() {
               <ToggleSwitch
                 enabled={forceRefresh}
                 onToggle={() => setForceRefresh((prev) => !prev)}
-                label="Force Fresh Analysis (recommended)"
+                label="Fresh Analysis"
                 disabled={true}
               />
             </div>

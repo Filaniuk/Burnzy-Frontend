@@ -145,7 +145,7 @@ export default function DashboardPlanModal({
         {/* Start date (REQUIRED) */}
         <div className="mb-4">
           <label className="text-neutral-400 text-sm mb-1 block">
-            Start date * (must not be in the past[])
+            Start date* (must not be in the past)
           </label>
 
           <div className="relative">

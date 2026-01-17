@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, AlertTriangle, Download } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import { AlertTriangle, Download } from "lucide-react";
 import type { GeneratedThumbnail } from "@/types/thumbnail";
 import { PurpleActionButton } from "@/components/PurpleActionButton";
 import ThumbnailEditModal from "./ThumbnailEditModal";
@@ -33,11 +33,7 @@ function formatDate(iso: string | undefined | null) {
   if (!iso) return "—";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("en-GB", {
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-  });
+  return d.toLocaleDateString("en-GB", { year: "numeric", month: "short", day: "2-digit" });
 }
 
 export default function ThumbnailCard({
@@ -49,7 +45,6 @@ export default function ThumbnailCard({
 }) {
   const ok = item.status === "succeeded";
   const href = item.storage_url || "";
-
   const proxySrc = thumbnailFileUrl(item.id);
 
   const [open, setOpen] = useState(false);
@@ -68,7 +63,6 @@ export default function ThumbnailCard({
 
   useEffect(() => {
     if (!open) return;
-    // When opening, use latest detail if we have it; otherwise item.
     setActive(item);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -82,10 +76,7 @@ export default function ThumbnailCard({
     }
   }
 
-  async function handleModify(
-    row: GeneratedThumbnail,
-    args: { mask: Blob; prompt: string }
-  ) {
+  async function handleModify(row: GeneratedThumbnail, args: { mask: Blob; prompt: string }) {
     try {
       setModifyLoading(true);
 
@@ -93,13 +84,10 @@ export default function ThumbnailCard({
       fd.append("mask", args.mask, "mask.png");
       fd.append("prompt", args.prompt);
 
-      const res = await apiFetch<EditResponse>(
-        `/api/v1/thumbnails/${row.id}/modify`,
-        {
-          method: "POST",
-          body: fd,
-        }
-      );
+      const res = await apiFetch<EditResponse>(`/api/v1/thumbnails/${row.id}/modify`, {
+        method: "POST",
+        body: fd,
+      });
 
       const newId = res?.data?.thumbnail_id;
       if (!newId) throw new Error("Server did not return a new thumbnail id.");
@@ -139,13 +127,10 @@ export default function ThumbnailCard({
       fd.append("face_image", args.faceImage);
       fd.append("prompt", args.prompt);
 
-      const res = await apiFetch<EditResponse>(
-        `/api/v1/thumbnails/${row.id}/swap-face`,
-        {
-          method: "POST",
-          body: fd,
-        }
-      );
+      const res = await apiFetch<EditResponse>(`/api/v1/thumbnails/${row.id}/swap-face`, {
+        method: "POST",
+        body: fd,
+      });
 
       const newId = res?.data?.thumbnail_id;
       if (!newId) throw new Error("Server did not return a new thumbnail id.");
@@ -173,10 +158,7 @@ export default function ThumbnailCard({
     }
   }
 
-  async function handleAddText(
-    row: GeneratedThumbnail,
-    args: { image: Blob; payload: Record<string, any> }
-  ) {
+  async function handleAddText(row: GeneratedThumbnail, args: { image: Blob; payload: Record<string, any> }) {
     try {
       setAddTextLoading(true);
 
@@ -184,13 +166,10 @@ export default function ThumbnailCard({
       fd.append("image", args.image, "thumbnail.png");
       fd.append("payload", JSON.stringify(args.payload));
 
-      const res = await apiFetch<EditResponse>(
-        `/api/v1/thumbnails/${row.id}/add-text`,
-        {
-          method: "POST",
-          body: fd,
-        }
-      );
+      const res = await apiFetch<EditResponse>(`/api/v1/thumbnails/${row.id}/add-text`, {
+        method: "POST",
+        body: fd,
+      });
 
       const newId = res?.data?.thumbnail_id;
       if (!newId) throw new Error("Server did not return a new thumbnail id.");
@@ -228,20 +207,30 @@ export default function ThumbnailCard({
     setImgSrc(preferredSrc);
   }, [preferredSrc]);
 
+  // If you want the button to be "sm" only on mobile:
+  // (This is safe in Next.js client components.)
+  const [isSmUp, setIsSmUp] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia("(min-width: 640px)");
+    const handler = () => setIsSmUp(mql.matches);
+    handler();
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, []);
+
   return (
     <>
       <div className="rounded-3xl border border-[#2E2D39] bg-[#1B1A24] overflow-hidden">
         <div className="relative aspect-[16/9] bg-[#0F0E17]">
           {ok ? (
             <img
-              // Prefer the direct storage URL (S3/CloudFront) for cheap, cacheable delivery.
-              // If the bucket is private / CORS isn't configured, we fall back to the authenticated API proxy.
               src={imgSrc}
               onError={() => {
                 if (imgSrc !== proxySrc) setImgSrc(proxySrc);
               }}
-              alt={item.title}
+              alt={display.title || item.title || "Thumbnail"}
               loading="lazy"
+              className="h-full w-full object-cover"
             />
           ) : (
             <div className="h-full w-full flex items-center justify-center text-neutral-500">
@@ -254,57 +243,55 @@ export default function ThumbnailCard({
 
           <div className="absolute top-3 right-3 flex items-center gap-2">
             {displayHref ? (
-              <>
-                <a
-                  href={`${displayHref}?download=1`}
-                  className="h-9 w-9 rounded-2xl bg-[#0F0E17]/80 border border-[#2E2D39] hover:border-[#00F5A0]/70 flex items-center justify-center transition"
-                  title="Download Thumbnail"
-                >
-                  <Download size={16} className="text-neutral-200" />
-                </a>
-              </>
+              <a
+                href={`${displayHref}?download=1`}
+                className="h-9 w-9 rounded-2xl bg-[#0F0E17]/80 border border-[#2E2D39] hover:border-[#00F5A0]/70 flex items-center justify-center transition"
+                title="Download Thumbnail"
+              >
+                <Download size={16} className="text-neutral-200" />
+              </a>
             ) : (
               <div className="h-9 w-9 rounded-2xl bg-[#0F0E17]/60 border border-[#2E2D39] opacity-60" />
             )}
           </div>
         </div>
 
-        <div className="p-4">
+        <div className="p-3 sm:p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex flex-col gap-2 min-w-0 w-full">
-              <p className="text-white font-semibold leading-snug truncate">
+              {/* Title: allow 2 lines on mobile, then clamp on larger screens if desired */}
+              <p className="text-white font-semibold leading-snug line-clamp-2 sm:line-clamp-1">
                 {display.title || "Untitled thumbnail"}
               </p>
 
-              <p className="text-sm text-neutral-400 truncate">
+              {/* Resolution: no truncation needed; keep it compact */}
+              <p className="text-xs sm:text-sm text-neutral-400">
                 Resolution:{" "}
                 <span className="text-neutral-200">
-                  {display.width ?? "—"}x{display.height ?? "—"}
+                  {display.width ?? "—"}×{display.height ?? "—"}
                 </span>
               </p>
 
-              <div className="my-2 shrink-0 flex justify-end">
-                <PurpleActionButton
-                  label="Edit Thumbnail"
-                  size="sm"
-                  onClick={() => setOpen(true)}
-                  disabled={!displayHref}
-                />
+              {/* CTA: right-aligned on larger screens; full-width on mobile */}
+              <div className="pt-1 flex">
+                <div className="w-full sm:w-auto sm:ml-auto">
+                  <PurpleActionButton
+                    label="Edit Thumbnail"
+                    size={isSmUp ? "md" : "sm"}
+                    onClick={() => setOpen(true)}
+                    disabled={!displayHref}
+                  />
+                </div>
               </div>
 
-              <div className="mt-2 flex flex-row justify-between">
-                <p className="text-xs text-neutral-400">
-                  Created: {formatDate(display.created_at)}
-                </p>
-                <p className="text-xs text-neutral-400">
-                  Version: {display.version}
-                </p>
+              {/* Meta row: stack on mobile to reduce horizontal squeeze */}
+              <div className="mt-1 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-neutral-400">Created: {formatDate(display.created_at)}</p>
+                <p className="text-xs text-neutral-400">Version: {display.version}</p>
               </div>
 
               {display.error_message ? (
-                <p className="mt-3 text-xs text-red-200 line-clamp-2">
-                  {display.error_message}
-                </p>
+                <p className="mt-2 text-xs text-red-200 line-clamp-2">{display.error_message}</p>
               ) : null}
             </div>
           </div>
@@ -315,7 +302,7 @@ export default function ThumbnailCard({
         open={open}
         item={displayHref ? display : item}
         onClose={() => setOpen(false)}
-        onModify={handleModify}  // now calls /modify under the hood
+        onModify={handleModify}
         onSwapFace={handleSwapFace}
         onAddText={handleAddText}
         modifyLoading={modifyLoading}

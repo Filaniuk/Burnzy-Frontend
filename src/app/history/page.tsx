@@ -31,12 +31,11 @@ export default function HistoryPage() {
   const loadedRef = useRef(false);
   const router = useRouter();
 
-  if (!user) {
-    return <Unauthorized title="Login Required" description="Login is required to access this page." />;
-  }
-
   // --- Fetch history ---
   const fetchHistory = useCallback(async () => {
+    // If not logged in, do not fetch
+    if (!user) return;
+
     if (loadedRef.current) return;
     loadedRef.current = true;
 
@@ -52,22 +51,42 @@ export default function HistoryPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
-    fetchHistory();
-  }, [fetchHistory]);
+    // Reset the one-time guard if auth state changes
+    loadedRef.current = false;
+
+    if (!authLoading) {
+      fetchHistory();
+    }
+  }, [authLoading, fetchHistory]);
+
+  // --- Auth loading ---
+  if (authLoading) {
+    return (
+      <div>
+        <LoadingAnalysis message="Checking authentication..." />
+      </div>
+    );
+  }
+
+  // --- Not logged in ---
+  if (!user) {
+    return <Unauthorized title="Login Required" description="Login is required to access this page." />;
+  }
 
   // --- Loading ---
-  if (loading)
+  if (loading) {
     return (
       <div>
         <LoadingAnalysis message="Loading your history" />
       </div>
     );
+  }
 
   // --- If empty ---
-  if (!items.length)
+  if (!items.length) {
     return (
       <>
         <div className="min-h-screen flex flex-col items-center justify-center bg-[#0F0E17] text-center px-6">
@@ -75,8 +94,7 @@ export default function HistoryPage() {
             No analyses yet
           </h1>
           <p className="text-neutral-400 max-w-md mb-8">
-            You haven’t analyzed any channels or topics yet. Start by analyzing one to see it
-            here!
+            You haven’t analyzed any channels or topics yet. Start by analyzing one to see it here!
           </p>
           <button
             onClick={() => router.push("/analyze")}
@@ -98,6 +116,7 @@ export default function HistoryPage() {
         />
       </>
     );
+  }
 
   // --- Partition data ---
   const channels = items.filter((i) => i.analysis_type === "channel");

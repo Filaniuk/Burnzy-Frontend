@@ -29,7 +29,7 @@ export default function CreateIdeaModal({
   version,
 }: Props) {
   const [title, setTitle] = useState("");
-  const [status, setStatus] = useState("unassigned");
+  const [status, setStatus] = useState("to_film");
 
   // NOW REQUIRED
   const [scheduledFor, setScheduledFor] = useState("");

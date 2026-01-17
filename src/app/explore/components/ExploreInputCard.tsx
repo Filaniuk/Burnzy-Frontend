@@ -10,6 +10,7 @@ type Advanced = {
   location: string;
   desired_length: string;
   format: "auto" | "shorts" | "long_form";
+  platform: "YouTube";
   constraints: string;
 };
 
@@ -41,7 +42,6 @@ export default function ExploreInputCard({
   isLoading: boolean;
   onSubmit: () => void;
 
-  // NEW
   inputError?: boolean;
   inputErrorText?: string;
 }) {
@@ -52,18 +52,30 @@ export default function ExploreInputCard({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
-      className="rounded-3xl border border-white/10 bg-[#14131C] shadow-xl p-6 sm:p-8"
+      className="rounded-3xl border border-white/10 bg-[#14131C] shadow-xl p-5 sm:p-8"
     >
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-white">Your idea</h2>
-          <p className="text-sm text-neutral-400 mt-1 max-w-2xl">
+      {/* Header: stack on mobile, row on sm+ */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          {/* Prevent "Your idea" from breaking into 2 lines */}
+          <h2 className="text-xl sm:text-2xl font-bold text-white whitespace-nowrap">
+            Your idea
+          </h2>
+
+          {/* Give description full width on mobile; keep nice measure on larger screens */}
+          <p className="text-sm text-neutral-400 mt-1 w-full sm:max-w-2xl leading-snug">
             Add a rough concept, angle, or topic. We will come up with high-leverage variations.
           </p>
         </div>
 
-        <div className="shrink-0">
-          <GradientActionButton onClick={onSubmit} disabled={!canSubmit} loading={isLoading} label="Explore Ideas" />
+        {/* Button: full-width on mobile, natural size on sm+ */}
+        <div className="shrink-0 w-full sm:w-auto">
+          <GradientActionButton
+            onClick={onSubmit}
+            disabled={!canSubmit}
+            loading={isLoading}
+            label="Explore Ideas"
+          />
         </div>
       </div>
 
@@ -87,9 +99,15 @@ export default function ExploreInputCard({
         )}
 
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/50">
-          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Tailored to your primary channel</span>
-          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Hot trends</span>
-          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Short meaning summary</span>
+          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
+            Tailored to your primary channel
+          </span>
+          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
+            Hot trends
+          </span>
+          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
+            Short meaning summary
+          </span>
         </div>
 
         <p className="text-xs text-neutral-400 mt-5 max-w-2xl">
@@ -102,7 +120,11 @@ export default function ExploreInputCard({
       </div>
 
       <div className="mt-6 flex flex-col gap-4">
-        <ToggleSwitch enabled={advancedOpen} onToggle={() => setAdvancedOpen(!advancedOpen)} label="Advanced options" />
+        <ToggleSwitch
+          enabled={advancedOpen}
+          onToggle={() => setAdvancedOpen(!advancedOpen)}
+          label="Advanced options"
+        />
 
         <div className="w-full">
           <AnimatePresence>
@@ -167,7 +189,9 @@ export default function ExploreInputCard({
                     </div>
                   </div>
 
-                  <p className="text-xs text-white/40 mt-4">Advanced options improve the quality of explored ideas.</p>
+                  <p className="text-xs text-white/40 mt-4">
+                    Advanced options improve the quality of explored ideas.
+                  </p>
                 </div>
               </motion.div>
             )}
@@ -192,7 +216,12 @@ function Field({
   return (
     <div className="flex flex-col gap-2 min-w-0">
       <label className="text-xs text-white/70">{label}</label>
-      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={`${controlBase} p-3 focus:ring-white/20`} />
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className={`${controlBase} p-3 focus:ring-white/20`}
+      />
     </div>
   );
 }

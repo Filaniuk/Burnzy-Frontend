@@ -1,384 +1,578 @@
 "use client";
 
-import {
-  useEffect,
-  useState,
-  Suspense,
-  useMemo,
-  useCallback,
-  useRef,
-} from "react";
-import dynamic from "next/dynamic";
-import { useParams, useSearchParams, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { Copy, CheckCircle2, Loader2 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
-import LoadingAnalysis from "@/components/LoadingAnalysis";
-import ConfirmModal from "@/app/pricing/components/ConfirmModal";
 
-import {
-  CardSection,
-  TextCard,
-  ListCard,
-} from "./components/IdeaSections";
-import ScriptViewer from "./components/ScriptViewer";
-import { ScriptData, VideoContentDetailedResponse } from "@/types/idea";
+import IdeaBuilderWizard from "./components/IdeaBuilderWizard";
+import IdeaThumbnail from "./components/IdeaThumbnail";
+import IdeaContentAdvice from "./components/IdeaContentAdvice";
+import IdeaWhyWorks from "./components/IdeaWhyWorks";
 import { PurpleActionButton } from "@/components/PurpleActionButton";
 
-// Lazy-loaded sections
-const IdeaHeader = dynamic(() => import("./components/IdeaHeader"), { ssr: false });
-const IdeaThumbnail = dynamic(() => import("./components/IdeaThumbnail"), { ssr: false });
-const IdeaHook = dynamic(() => import("./components/IdeaHook"), { ssr: false });
-const IdeaOpeningScene = dynamic(() => import("./components/IdeaOpeningScene"), { ssr: false });
-const IdeaKeyQuote = dynamic(() => import("./components/IdeaKeyQuote"), { ssr: false });
-const IdeaNarrativeArc = dynamic(() => import("./components/IdeaNarrativeArc"), { ssr: false });
-const IdeaEmotions = dynamic(() => import("./components/IdeaEmotions"), { ssr: false });
-const IdeaSecondaryTopics = dynamic(() => import("./components/IdeaSecondaryTopics"), { ssr: false });
-const IdeaSEOKeywords = dynamic(() => import("./components/IdeaSEOKeywords"), { ssr: false });
-const IdeaWhyThisIdea = dynamic(() => import("./components/IdeaWhyThisIdea"), { ssr: false });
+type Plan = {
+  schema_id?: string;
+  plan_version?: number;
+  mode?: "suggestion" | "final";
+  revision_note?: string;
 
+  title: string;
+  hook: string;
+  duration: string;
+  angle: string;
+  reveal: string;
+  cta: string;
 
-// Prevents duplicate loads in Next strict mode
-const fetchedIdeas = new Set<string>();
+  // plain text reused from trend service
+  why_this_idea?: string;
 
-export default function IdeaDetailPage() {
-  const params = useParams();
+  content_advice?: string[];
+
+  must_do_today: string[];
+  optional_if_time: string[];
+
+  beats: string[];
+  shots: string[];
+  on_screen: string[];
+  avoid: string[];
+
+  mocked_thumbnail_url?: string | null;
+  thumbnail_variations?: string[];
+};
+
+function Section({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="border border-[#2E2D39] rounded-2xl p-5 bg-[#12111A]/70">
+      <div className="flex items-end justify-between gap-3">
+        <h2 className="text-base font-semibold text-white">{title}</h2>
+        {hint ? <div className="text-xs text-neutral-500">{hint}</div> : null}
+      </div>
+      <div className="mt-3">{children}</div>
+    </div>
+  );
+}
+
+function ChipRow({ items }: { items: string[] }) {
+  if (!items?.length) return null;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {items.map((x, i) => (
+        <span
+          key={i}
+          className="px-3 py-1 rounded-full text-xs border border-[#2E2D39] bg-[#14131C] text-neutral-200"
+        >
+          {x}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function NumberedList({ items }: { items: string[] }) {
+  if (!items?.length) return null;
+  return (
+    <ol className="space-y-2 text-sm text-neutral-200">
+      {items.map((x, i) => (
+        <li key={i} className="flex gap-3">
+          <span className="w-6 text-neutral-500">{i + 1}.</span>
+          <span>{x}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function Checklist({
+  items,
+  selected,
+  onToggle,
+  max = 6,
+  disabled = false,
+}: {
+  items: string[];
+  selected: string[];
+  onToggle: (item: string) => void;
+  max?: number;
+  disabled?: boolean;
+}) {
+  if (!items?.length) return null;
+
+  return (
+    <div className="space-y-2">
+      {items.map((x, i) => {
+        const checked = selected.includes(x);
+
+        return (
+          <button
+            key={i}
+            type="button"
+            disabled={disabled}
+            onClick={() => onToggle(x)}
+            className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl border text-sm transition
+              ${checked
+                ? "border-[#00F5A0]/60 bg-[#00F5A0]/10 text-neutral-100"
+                : "border-[#2E2D39] bg-[#14131C] text-neutral-200 hover:border-[#6C63FF]/50"
+              }
+              ${disabled
+                ? "opacity-60 cursor-not-allowed hover:border-[#2E2D39]"
+                : ""
+              }`}
+          >
+            <span className="text-left">{x}</span>
+            <span className="text-xs text-neutral-500">
+              {checked ? "Selected" : "Tap to add"}
+            </span>
+          </button>
+        );
+      })}
+
+      <div className="pt-2 text-xs text-neutral-500">
+        Selected: {selected.length} / {max}
+      </div>
+    </div>
+  );
+}
+
+export default function IdeaPage() {
+  const params = useParams<{ uuid: string }>();
   const searchParams = useSearchParams();
-  const router = useRouter();
 
-  const ideaUuid = (params.uuid as string) || "";
-  const tag = searchParams.get("tag") || "@default";
-  const version = Number(searchParams.get("version")) || 1;
-  const [tab, setTab] = useState<"brief" | "script">("brief");
-  const [data, setData] = useState<VideoContentDetailedResponse["data"] | null>(null);
-  const [meta, setMeta] = useState<VideoContentDetailedResponse["meta"] | null>(null);
-  const [loading, setLoading] = useState(true);
+  const ideaUuid = params?.uuid || "";
 
-  const [script, setScript] = useState<ScriptData | null>(null);
-  const [scriptLoading, setScriptLoading] = useState(false);
+  const tag = searchParams.get("tag") || searchParams.get("channel_tag") || "";
+  const version = Number(searchParams.get("version") || 1);
 
-  const [feedback, setFeedback] = useState({
-    show: false,
-    title: "",
-    description: "",
-    color: "red" as "red" | "yellow" | "green",
-  });
+  const trendIdRaw = searchParams.get("trend_id");
+  const trendId = trendIdRaw ? Number(trendIdRaw) : null;
 
-  const cancelRef = useRef(false);
+  const exploreBatchUuid =
+    searchParams.get("explore_batch_uuid") ||
+    searchParams.get("exploreBatchUuid");
 
-  /** Normalize ANY backend or network error */
-  /** Normalize ANY backend or network error to a string */
-  const normalizeError = (err: any, fallback: string) => {
-    if (!err) return fallback;
+  const [suggestionData, setSuggestionData] = useState<any | null>(null);
+  const [isFinal, setIsFinal] = useState(false);
 
-    // Already a string
-    if (typeof err === "string") return err;
+  // prevents flashing builder UI before cache bootstrap finishes
+  const [booting, setBooting] = useState(true);
 
-    // If apiFetch throws a Response or something Response-like
-    if (err instanceof Error && typeof err.message === "string") {
-      return err.message || fallback;
-    }
+  const plan: Plan | null = useMemo(() => {
+    const v = suggestionData?.video_detail;
+    if (!v) return null;
+    return v as Plan;
+  }, [suggestionData]);
 
-    const detail = err?.detail ?? err?.response?.detail ?? err?.data?.detail;
+  const [editTitle, setEditTitle] = useState("");
+  const [editHook, setEditHook] = useState("");
+  const [editAngle, setEditAngle] = useState("");
+  const [editReveal, setEditReveal] = useState("");
+  const [editCta, setEditCta] = useState("");
+  const [selectedShots, setSelectedShots] = useState<string[]>([]);
+  const [changeRequest, setChangeRequest] = useState("");
 
-    // FastAPI/Pydantic errors often come as an array of {loc, msg, type, ...}
-    if (Array.isArray(detail)) {
-      const msgs = detail
-        .map((d) => (typeof d === "string" ? d : d?.msg))
-        .filter(Boolean);
-      return msgs.length ? msgs.join("\n") : fallback;
-    }
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
-    // Or as a single object with {msg, ...}
-    if (detail && typeof detail === "object") {
-      if (typeof detail.msg === "string") return detail.msg;
+  const onSuggestionLoaded = (data: any) => {
+    setSuggestionData(data);
+    setError("");
 
-      // Last resort: stringify
+    const v = data?.video_detail as Plan;
+    if (!v) return;
+
+    const mode = v.mode === "final";
+    setIsFinal(mode);
+
+    setEditTitle(v.title || "");
+    setEditHook(v.hook || "");
+    setEditAngle(v.angle || "");
+    setEditReveal(v.reveal || "");
+    setEditCta(v.cta || "");
+    setSelectedShots(Array.isArray(v.shots) ? v.shots.slice(0, 999) : []);
+    setChangeRequest("");
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function bootstrapFromCache() {
+      // If missing required params, don't block UI forever
+      if (!ideaUuid || !tag) {
+        setBooting(false);
+        return;
+      }
+
       try {
-        return JSON.stringify(detail);
-      } catch {
-        return fallback;
+        const qs = new URLSearchParams({
+          idea_uuid: ideaUuid,
+          channel_tag: tag,
+          version: String(version),
+        });
+
+        if (trendId) qs.set("trend_id", String(trendId));
+        if (exploreBatchUuid) qs.set("explore_batch_uuid", exploreBatchUuid);
+
+        const res = await apiFetch<any>(
+          `/api/v1/video_content_detailed/cache?${qs.toString()}`,
+          { method: "GET" }
+        );
+
+        if (cancelled) return;
+
+        const cachedPlan = res?.data?.video_detail;
+        if (cachedPlan) {
+          onSuggestionLoaded({ video_detail: cachedPlan });
+        }
+      } catch (e: any) {
+        // Cache lookup should never hard-fail the UX
+        console.warn("Idea cache bootstrap failed:", e);
+      } finally {
+        if (!cancelled) setBooting(false);
       }
     }
 
-    // Sometimes the error itself has msg/message
-    if (typeof err?.message === "string") return err.message;
-    if (typeof err?.msg === "string") return err.msg;
+    bootstrapFromCache();
 
-    // Last resort
+    return () => {
+      cancelled = true;
+    };
+  }, [ideaUuid, tag, version, trendId, exploreBatchUuid]);
+
+  const toggleShot = (x: string) => {
+    if (isFinal) return;
+
+    // cap selection to the plan size (dynamic backend list)
+    const cap = plan?.shots?.length || 6;
+
+    setSelectedShots((prev) => {
+      if (prev.includes(x)) return prev.filter((s) => s !== x);
+      if (prev.length >= cap) return prev;
+      return [...prev, x];
+    });
+  };
+
+  const copyPlan = async () => {
+    if (!plan) return;
+
+    const lines = [
+      `TITLE: ${editTitle || plan.title}`,
+      `HOOK: ${editHook || plan.hook}`,
+      `DURATION: ${plan.duration}`,
+      ``,
+      `ANGLE: ${editAngle || plan.angle}`,
+      `REVEAL: ${editReveal || plan.reveal}`,
+      `CTA: ${editCta || plan.cta}`,
+      ``,
+      `WHY THIS IDEA WORKS:`,
+      `${(plan.why_this_idea || "").trim()}`,
+      ``,
+      `WHAT TO TALK ABOUT:`,
+      ...(plan.content_advice || []).map((x) => `- ${x}`),
+      ``,
+      `MUST DO TODAY:`,
+      ...(plan.must_do_today || []).map((x) => `- ${x}`),
+      ``,
+      `OPTIONAL IF TIME:`,
+      ...(plan.optional_if_time || []).map((x) => `- ${x}`),
+      ``,
+      `BEATS:`,
+      ...(plan.beats || []).map((x, i) => `${i + 1}. ${x}`),
+      ``,
+      `SELECTED SHOTS:`,
+      ...(selectedShots || []).map((x) => `- ${x}`),
+      ``,
+      `ON SCREEN:`,
+      ...(plan.on_screen || []).map((x) => `- ${x}`),
+      ``,
+      `AVOID:`,
+      ...(plan.avoid || []).map((x) => `- ${x}`),
+    ].join("\n");
+
     try {
-      return JSON.stringify(err);
+      await navigator.clipboard.writeText(lines);
     } catch {
-      return fallback;
+      // ignore
     }
   };
 
+  const finalize = async () => {
+    if (!plan) return;
+    if (isFinal) return;
 
-  useEffect(() => {
-    const exploreBatchUuid = searchParams.get("explore_batch_uuid") || "";
+    setBusy(true);
+    setError("");
 
-    // Guard: don’t send invalid requests that produce 422
-    if (!ideaUuid || !tag || !version || Number.isNaN(version)) return;
-
-    const key = `${ideaUuid}-${tag}-${version}-${exploreBatchUuid}`;
-    if (fetchedIdeas.has(key)) return;
-    fetchedIdeas.add(key);
-
-    cancelRef.current = false;
-    setLoading(true);
-
-    (async () => {
-      try {
-        const res = await apiFetch<any>("/api/v1/video_content_detailed", {
-          method: "POST",
-          body: JSON.stringify({
-            channel_tag: tag,
-            idea_uuid: ideaUuid,
-            version,
-            ...(exploreBatchUuid ? { explore_batch_uuid: exploreBatchUuid } : {}),
-          }),
-        });
-        if (!res?.data?.video_detail) {
-          throw new Error("Missing detailed video data.");
-        }
-
-        if (!cancelRef.current) {
-          setData(res.data);
-          setMeta(res.meta);
-        }
-
-      } catch (err: any) {
-        const msg = normalizeError(err, "Failed to load idea details.");
-        if (!cancelRef.current) {
-          setFeedback({
-            show: true,
-            title: "Load Error",
-            description: msg,
-            color: "red",
-          });
-        }
-      } finally {
-        if (!cancelRef.current) setLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelRef.current = true;
-    };
-  }, [ideaUuid, tag, version, searchParams]); // important
-
-
-  const v = useMemo(() => data?.video_detail || null, [data]);
-  console.log('v:', v)
-  /** ------------------------------
-   * Generate script
-   * ------------------------------ */
-  const generateScript = useCallback(async () => {
     try {
-      setScriptLoading(true);
+      const adjustments = {
+        title: editTitle,
+        hook: editHook,
+        angle: editAngle,
+        reveal: editReveal,
+        cta: editCta,
+        shots: selectedShots,
+        change_request: changeRequest.trim().slice(0, 200),
+      };
 
-      const res = await apiFetch<any>("/api/v1/video_script", {
+      const res = await apiFetch<any>("/api/v1/video_content_detailed/finalize", {
         method: "POST",
         body: JSON.stringify({
           channel_tag: tag,
           idea_uuid: ideaUuid,
           version,
+          ...(trendId ? { trend_id: trendId } : {}),
+          ...(exploreBatchUuid ? { explore_batch_uuid: exploreBatchUuid } : {}),
+          current_plan: plan,
+          adjustments,
         }),
       });
 
-      setScript(res.data || null);
-    } catch (err: any) {
-      const msg = normalizeError(err, "Failed to generate script.");
-      setFeedback({
-        show: true,
-        title: "Script Error",
-        description: msg,
-        color: "red",
-      });
+      if (!res?.data?.video_detail) {
+        throw new Error("Finalize returned invalid data.");
+      }
+
+      onSuggestionLoaded(res.data);
+      setIsFinal(true);
+    } catch (e: any) {
+      setError(e?.message || "Finalize failed.");
     } finally {
-      setScriptLoading(false);
+      setBusy(false);
     }
-  }, [ideaUuid, tag, version]);
+  };
 
-  /** ------------------------------
-   * Loading state
-   * ------------------------------ */
-  if (loading) return <LoadingAnalysis message="Preparing your idea details…" />;
+  if (!ideaUuid) {
+    return <div className="p-6 text-neutral-200">Missing idea uuid.</div>;
+  }
 
-  /** ------------------------------
-   * Missing data
-   * ------------------------------ */
-  if (!data || !v) {
+  if (!tag) {
     return (
-      <>
-        <main className="min-h-screen bg-[#0F0E17] text-white flex flex-col items-center justify-center px-6 text-center">
-          <h2 className="text-xl sm:text-2xl font-semibold mb-3">No Data Available</h2>
-          <p className="text-neutral-400 max-w-md mb-6">
-            We couldn’t find details for this idea. It may have expired or been removed.
-          </p>
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="px-5 py-2.5 rounded-xl bg-[#1B1A24] hover:bg-[#2E2D39] text-neutral-300 border border-[#2E2D39] transition-all"
-          >
-            ← Back
-          </button>
-        </main>
-
-        <ConfirmModal
-          show={feedback.show}
-          title={feedback.title}
-          description={feedback.description}
-          confirmText="OK"
-          confirmColor={feedback.color}
-          onConfirm={() => setFeedback({ ...feedback, show: false })}
-          onCancel={() => setFeedback({ ...feedback, show: false })}
-        />
-      </>
+      <div className="p-6 text-neutral-200">
+        Missing channel tag. Open with{" "}
+        <span className="text-neutral-400">?tag=@your_channel_tag</span>.
+      </div>
     );
   }
 
-  /** ------------------------------
-   * MAIN RENDER
-   * ------------------------------ */
-  return (
-    <div className="min-h-screen bg-[#0F0E17] text-white flex items-center justify-center py-12 sm:py-16 px-4 sm:px-6">
-      <div className="max-w-6xl w-full mx-auto flex flex-col bg-[#14131C]/70 backdrop-blur-xl border border-[#2E2D39] rounded-2xl shadow-2xl p-6 sm:p-10 gap-8 opacity-0 translate-y-3 animate-[fadeInUp_400ms_ease-out_forwards]">
-
-        {/* Header */}
-        <Suspense fallback={<SectionLoader text="Loading header…" />}>
-          <IdeaHeader data={data} />
-        </Suspense>
-
-        {/* Tabs */}
-        <div className="flex justify-between gap-4 border-b border-[#2E2D39] pb-3 mt-2">
-          <div className="flex gap-2 sm:gap-3">
-            <TabButton label="Creative Brief" active={tab === "brief"} onClick={() => setTab("brief")} />
-            <TabButton label="Script" active={tab === "script"} onClick={() => setTab("script")} />
-          </div>
+  if (booting) {
+    return (
+      <main className="mx-auto max-w-5xl px-4 py-8">
+        <div className="p-6 text-neutral-200 flex items-center gap-2">
+          <Loader2 className="animate-spin" size={16} />
+          Loading idea…
         </div>
+      </main>
+    );
+  }
 
-        {/* TAB: BRIEF */}
-        {tab === "brief" && (
-          <>
-            <Suspense fallback={<SectionLoader text="Loading visuals…" />}>
-              <div className="flex justify-center flex-wrap gap-6">
-                <IdeaThumbnail
-                  v={v}
-                  ideaUuid={ideaUuid}
-                  trendId={meta?.trend_id ?? meta?.trend_id ?? null}
-                />
+  return (
+    <main className="mx-auto max-w-5xl px-4 py-8">
+      {!plan ? (
+        <IdeaBuilderWizard
+          ideaUuid={ideaUuid}
+          tag={tag}
+          version={version}
+          trendId={trendId}
+          exploreBatchUuid={exploreBatchUuid}
+          onFinal={(data) => onSuggestionLoaded(data)}
+        />
+      ) : (
+        <section className="grid lg:grid-cols-[1fr_420px] gap-6">
+          <div className="border border-[#242335] rounded-2xl p-6 bg-[#12111A]/80 shadow-lg space-y-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`text-xs px-2 py-1 rounded-full border ${isFinal
+                        ? "border-[#00F5A0]/40 bg-[#00F5A0]/10 text-[#00F5A0]"
+                        : "border-[#6C63FF]/40 bg-[#6C63FF]/10 text-[#6C63FF]"
+                      }`}
+                  >
+                    {isFinal ? "Finalized" : "Idea Suggestion"}
+                  </div>
+
+
+                </div>
+
+                <h1 className="text-2xl font-semibold text-white mt-2 break-words">
+                  {plan.title}
+                </h1>
+
+                <p className="text-sm text-neutral-300 mt-2">{plan.hook}</p>
               </div>
-            </Suspense>
 
-            <Suspense fallback={<SectionLoader text="Loading creative details…" />}>
-              <div className="flex flex-wrap gap-6 justify-center">
-                <IdeaHook v={v} />
-                <IdeaOpeningScene v={v} />
-                <IdeaKeyQuote v={v} />
-                <IdeaNarrativeArc v={v} />
+              <div className="flex gap-2 shrink-0">
+                <button
+                  onClick={copyPlan}
+                  className="px-3 py-2 rounded-xl border border-[#2E2D39] bg-[#14131C] hover:border-[#6C63FF]/60 transition text-sm text-neutral-200 flex items-center gap-2"
+                >
+                  <Copy size={16} />
+                  Copy
+                </button>
               </div>
-            </Suspense>
-
-            <Suspense fallback={<SectionLoader text="Loading context…" />}>
-              <div className="flex flex-wrap gap-6 justify-center">
-                <IdeaEmotions v={v} />
-                <IdeaSecondaryTopics v={v} />
-                <IdeaSEOKeywords v={v} />
-              </div>
-            </Suspense>
-
-            {/* Production Details */}
-            <div className="grid sm:grid-cols-2 gap-6">
-              <CardSection title="Shoot Locations" list={v.shoot_location || []} color="#00F5A0" />
-              <CardSection title="Equipment" list={v.equipment_needed || []} color="#00F5A0" />
             </div>
 
-            <div className="grid sm:grid-cols-2 gap-6">
-              <TextCard title="Editing Style" text={v.editing_style} color="#6C63FF" />
-              <ListCard title="Music Mood" list={v.background_music_mood || []} color="#6C63FF" />
+            <div className="grid sm:grid-cols-3 gap-3 text-sm">
+              <div className="border border-[#2E2D39] rounded-xl p-3 bg-[#14131C]">
+                <div className="text-neutral-400 text-xs">Duration</div>
+                <div className="text-neutral-100 mt-1">{plan.duration}</div>
+              </div>
+
+              <div className="border border-[#2E2D39] rounded-xl p-3 bg-[#14131C]">
+                <div className="text-neutral-400 text-xs">Angle</div>
+                <div className="text-neutral-100 mt-1">{plan.angle}</div>
+              </div>
+
+              <div className="border border-[#2E2D39] rounded-xl p-3 bg-[#14131C]">
+                <div className="text-neutral-400 text-xs">CTA</div>
+                <div className="text-neutral-100 mt-1">{plan.cta}</div>
+              </div>
             </div>
 
-            <Suspense fallback={<SectionLoader text="Loading insights…" />}>
-              <IdeaWhyThisIdea v={v} />
-            </Suspense>
-          </>
-        )}
+            {/* Plain text "why" reused from trend service */}
+            <IdeaWhyWorks text={plan.why_this_idea} />
 
-        {/* TAB: SCRIPT */}
-        {tab === "script" && (
-          <div className="space-y-6">
-            <ScriptHeader
-              script={script}
-              loading={scriptLoading}
-              onGenerate={generateScript}
-            />
+            {/* What to talk about */}
+            <IdeaContentAdvice items={plan.content_advice || []} />
 
-            {scriptLoading && !script && <SectionLoader text="📝 The script is being generated..." />}
+            <Section title="Adjust it (optional)" hint={isFinal ? "Locked" : "Short edits"}>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <div className="text-xs text-neutral-500">Title</div>
+                  <input
+                    disabled={isFinal}
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-[#2E2D39] bg-[#14131C] text-neutral-100 text-sm disabled:opacity-60"
+                  />
+                </div>
 
-            <ScriptViewer script={script} />
+                <div className="space-y-2">
+                  <div className="text-xs text-neutral-500">Hook</div>
+                  <input
+                    disabled={isFinal}
+                    value={editHook}
+                    onChange={(e) => setEditHook(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-[#2E2D39] bg-[#14131C] text-neutral-100 text-sm disabled:opacity-60"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-xs text-neutral-500">Angle</div>
+                  <input
+                    disabled={isFinal}
+                    value={editAngle}
+                    onChange={(e) => setEditAngle(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-[#2E2D39] bg-[#14131C] text-neutral-100 text-sm disabled:opacity-60"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-xs text-neutral-500">Reveal</div>
+                  <input
+                    disabled={isFinal}
+                    value={editReveal}
+                    onChange={(e) => setEditReveal(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-[#2E2D39] bg-[#14131C] text-neutral-100 text-sm disabled:opacity-60"
+                  />
+                </div>
+
+                <div className="space-y-2 sm:col-span-2">
+                  <div className="text-xs text-neutral-500">CTA</div>
+                  <input
+                    disabled={isFinal}
+                    value={editCta}
+                    onChange={(e) => setEditCta(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-[#2E2D39] bg-[#14131C] text-neutral-100 text-sm disabled:opacity-60"
+                  />
+                </div>
+              </div>
+            </Section>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Section title="Must do today" hint={`${plan.must_do_today?.length || 0} items`}>
+                <ChipRow items={plan.must_do_today || []} />
+              </Section>
+              <Section title="Optional if time" hint={`${plan.optional_if_time?.length || 0} items`}>
+                <ChipRow items={plan.optional_if_time || []} />
+              </Section>
+            </div>
+
+            <Section title="Beats" hint={`${plan.beats?.length || 0} steps`}>
+              <NumberedList items={plan.beats || []} />
+            </Section>
+
+            <Section
+              title={`Shots (pick your ${plan.shots?.length || 6})`}
+              hint={isFinal ? "Locked" : "Tap to select"}
+            >
+              <Checklist
+                items={plan.shots || []}
+                selected={selectedShots}
+                onToggle={toggleShot}
+                max={plan.shots?.length || 6}
+                disabled={isFinal}
+              />
+            </Section>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Section title="On-screen numbers" hint={`${plan.on_screen?.length || 0} items`}>
+                <ChipRow items={plan.on_screen || []} />
+              </Section>
+
+              <Section title="Avoid" hint={`${plan.avoid?.length || 0} items`}>
+                <NumberedList items={plan.avoid || []} />
+              </Section>
+            </div> 
+            {!isFinal && <>
+            <Section title="What should change?" hint={`${changeRequest.length}/200`}>
+              <textarea
+                disabled={isFinal}
+                value={changeRequest}
+                onChange={(e) => setChangeRequest(e.target.value.slice(0, 200))}
+                placeholder="Optional. Leave empty to finalize instantly without AI."
+                className="w-full min-h-[90px] px-3 py-2 rounded-xl border border-[#2E2D39] bg-[#14131C] text-neutral-100 text-sm disabled:opacity-60"
+              />
+              <p className="mt-2 text-xs text-neutral-500">
+                If this is empty, finalizing will NOT trigger an AI call.
+              </p>
+            </Section>
+
+            {error ? (
+              <div className="text-sm text-red-400 border border-red-500/20 bg-red-500/5 rounded-xl p-3">
+                {error}
+              </div>
+            ) : null}
+            
+            <div className="flex justify-center">
+              <PurpleActionButton
+                disabled={busy || isFinal}
+                onClick={finalize}
+                label="Finalize Idea"
+                loading={busy}
+              />
+            </div>
+            </>
+            }
+
+            {isFinal ? (
+              <p className="text-xs text-neutral-500 text-center">
+                This idea is finalized and locked.
+              </p>
+            ) : null}
           </div>
-        )}
-      </div>
 
-      {/* GLOBAL ERROR MODAL */}
-      <ConfirmModal
-        show={feedback.show}
-        title={feedback.title}
-        description={feedback.description}
-        confirmColor={feedback.color}
-        confirmText="OK"
-        onConfirm={() => setFeedback({ ...feedback, show: false })}
-        onCancel={() => setFeedback({ ...feedback, show: false })}
-      />
-
-      <style jsx global>{`
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-/** Small UI helpers */
-function SectionLoader({ text }: { text: string }) {
-  return (
-    <div className="text-center text-neutral-500 bg-[#1B1A24]/50 border border-[#2E2D39] rounded-xl py-6 text-sm animate-pulse w-full">
-      {text}
-    </div>
-  );
-}
-
-function TabButton({ label, active, onClick }: any) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-3 py-1.5 rounded-lg text-sm sm:text-base transition
-      ${active
-          ? "bg-[#6C63FF]/20 text-white border border-[#6C63FF]/40"
-          : "text-neutral-400 hover:text-white hover:bg-[#1B1A24]"
-        }`}
-    >
-      {label}
-    </button>
-  );
-}
-
-function ScriptHeader({ script, loading, onGenerate }: any) {
-  return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <div>
-        <h2 className="text-lg font-semibold">Full Video Script & Shooting Plan</h2>
-        <p className="text-xs sm:text-sm text-neutral-400 max-w-xl">
-          Get a production-ready script with timestamps, scenes, B-roll notes, and a Shorts version.
-        </p>
-      </div>
-
-      <PurpleActionButton
-        onClick={onGenerate}
-        disabled={loading || !!script}
-        loading={loading}
-        label="Generate Script"
-      />
-    </div>
+          <div className="space-y-4">
+            <IdeaThumbnail v={plan} ideaUuid={ideaUuid} trendId={trendId} />
+          </div>
+        </section>
+      )}
+    </main>
   );
 }
