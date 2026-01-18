@@ -14,7 +14,6 @@ export type ExploreIdeaSuggestion = {
   format?: string;
   title: string;
   hook?: string;
-  outline?: string[];
   thumbnail_concept?: string;
   thumbnail_mockup_text?: string;
   call_to_action?: string;

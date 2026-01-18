@@ -109,20 +109,6 @@ export default function ExploreIdeaCard({
           </div>
         )}
 
-        {idea.outline?.length ? (
-          <div className="mt-4">
-            <p className="text-xs text-white/50 mb-2">Outline</p>
-            <ul className="space-y-2">
-              {idea.outline.slice(0, 4).map((item, i) => (
-                <li key={i} className="text-sm text-white/75 flex gap-2">
-                  <span className="text-white/40">•</span>
-                  <span className="leading-relaxed">{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-
         <div className="mt-5 flex items-center justify-between gap-3">
           <PurpleActionButton
             label="Explore idea"

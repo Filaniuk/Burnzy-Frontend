@@ -55,8 +55,6 @@ export default function NicheInputCard({ keyword, setKeyword, isLoading, onSubmi
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-gray-400">
-          <p className="text-sm mt-2 text-gray-400">
-            The evaluation uses a statistical approach for niche and keyword analysis. Our engine calculates metrics such as upload date, channel data, and views over time from YouTube Analytics to produce a precise analysis.          </p>
           <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">50 probe videos from YouTube Search</span>
           <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Median values</span>
           <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Probe Metrics</span>
