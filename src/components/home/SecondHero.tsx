@@ -48,7 +48,7 @@ export default function SecondHero() {
         {
             icon: <CheckCircle className="text-[#00F5A0] w-6 h-6" />,
             title: "Trend-Based Ideas, Thumbnails, Scripts and Briefs Tailored to You",
-            desc: "Ideas matched to your niche, trending topics, and top-performing content formats. Receive full scripts, title ideas, thumbnails, and creative directions in seconds.",
+            desc: "Ideas matched to your niche, trending topics, and top-performing content formats. Receive ideas, thumbnails, and creative directions in seconds.",
         },
         {
             icon: <PenTool className="text-[#6C63FF] w-6 h-6" />,
@@ -58,7 +58,7 @@ export default function SecondHero() {
         {
             icon: <CalendarDays className="text-[#6C63FF] w-6 h-6" />,
             title: "Automated YouTube Content Calendar",
-            desc: "Your entire content plan auto-generated — including publishing days, video sequence, and production workflow.",
+            desc: "Your entire content plan auto-generated: including publishing days, video sequence, and production workflow.",
         },
         {
             icon: <Sparkles className="text-[#00F5A0] w-6 h-6" />,

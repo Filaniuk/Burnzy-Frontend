@@ -1,6 +1,8 @@
-import { GradientActionButton } from "@/components/GradientActionButton";
+"use client";
+
 import { PurpleActionButton } from "@/components/PurpleActionButton";
 import { motion, easeOut } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -14,7 +16,6 @@ const fadeUp = {
   },
 };
 
-
 export default function ActionButtons({
   type,
   onShowInsights,
@@ -24,14 +25,16 @@ export default function ActionButtons({
   onShowInsights: () => void;
   onGenerateIdeas: () => void;
 }) {
+  const router = useRouter();
+
   return (
-    <motion.div variants={fadeUp} className="flex justify-center gap-4 mt-10 flex-wrap">
-      {type === "channel" && (
-        <PurpleActionButton onClick={onShowInsights} label="✨ Show Insights" size="md" />
-      )}
+    <motion.div
+      variants={fadeUp}
+      className="flex justify-center gap-4 mt-10 flex-wrap"
+    >
       <PurpleActionButton
-        onClick={onGenerateIdeas}
-        label="🔥 Generate Trend Ideas"
+        onClick={() => router.push("/dashboard")}
+        label="Open Dashboard"
         size="md"
       />
     </motion.div>

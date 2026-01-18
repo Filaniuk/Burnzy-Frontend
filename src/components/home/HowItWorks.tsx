@@ -32,8 +32,8 @@ export default function HowItWorks() {
     },
     {
       number: 3,
-      title: "Get your custom plan",
-      desc: "Receive your personalized content plan written and ready to publish.",
+      title: "Start creating",
+      desc: "Create high-performing content with your personalized plan in hand.",
       icon: <Rocket className="w-6 h-6 text-[#00F5A0]" />,
       glow: "from-[#00F5A0]/60 to-[#00F5A0]/0",
       ring: "border-[#00F5A0]",

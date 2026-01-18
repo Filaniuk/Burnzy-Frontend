@@ -1,5 +1,6 @@
 import FinalCTA from "@/components/home/FinalCTA";
 import Hero from "@/components/home/Hero";
+import HomePageViewed from "@/components/home/HomePageViewed";
 import HowItWorks from "@/components/home/HowItWorks";
 import PreviewFeatures from "@/components/home/PreviewFeatures";
 import QuoteBlock from "@/components/home/QuoteBlock";
@@ -9,17 +10,17 @@ import WhyHard from "@/components/home/WhyHard";
 import posthog from "posthog-js";
 
 export default function Home() {
-  posthog.capture("home_page_viewed");
   return (
     <div>
+      <HomePageViewed />
       <Hero />
-      <Reviews/>
-      <WhyHard/>
-      <QuoteBlock/>
-      <SecondHero/>
-      <PreviewFeatures/>
-      <HowItWorks/>
-      <FinalCTA/>
+      <Reviews />
+      <WhyHard />
+      <QuoteBlock />
+      <SecondHero />
+      <PreviewFeatures />
+      <HowItWorks />
+      <FinalCTA />
     </div>
   );
 }

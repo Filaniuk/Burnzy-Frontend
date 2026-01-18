@@ -18,12 +18,12 @@ export default function PreviewFeatures() {
 
   const featureCards = [
         {
-      img: "/ideaexmp.webp",
+      img: "/ideademo12395.png",
       tag1: "Detailed Briefs",
       tag2: "Script Generator",
       tag3: "Thumbnail Concepts",
       title: "Trend Ideas",
-      desc: "Get fresh, data-backed video ideas generated from real-time trends, competitor updates, and audience behavior—tailored to your channel.",
+      desc: "Get fresh, data-backed video ideas generated from real-time trends, competitor updates, and audience. Tailored to your channel.",
     },
     {
       img: "/thumbdemo123.webp",
