@@ -17,7 +17,6 @@ export default function NicheHero() {
       </h1>
       <p className="max-w-3xl text-center text-neutral-400 mx-auto">
         Evaluate demand, momentum, opportunity, and competition for a single keyword using a lightweight YouTube probe.
-        Results are cached for 3 days on the backend.
       </p>
     </motion.div>
   );

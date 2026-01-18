@@ -152,13 +152,6 @@ export default function ExploreInputCard({
                       onChange={(v) => setAdvanced((p) => ({ ...p, location: v }))}
                     />
 
-                    <Field
-                      label="Desired length"
-                      value={advanced.desired_length}
-                      placeholder='Example: "30-45s", "8-10 min"'
-                      onChange={(v) => setAdvanced((p) => ({ ...p, desired_length: v }))}
-                    />
-
                     <div className="flex flex-col gap-2 min-w-0">
                       <label className="text-xs text-white/70">Format</label>
                       <select

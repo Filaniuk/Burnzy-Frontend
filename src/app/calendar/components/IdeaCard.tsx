@@ -4,6 +4,8 @@ import { ExternalLink, Trash2 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { useState } from "react";
 import ConfirmModal from "@/app/pricing/components/ConfirmModal";
+import posthog from "posthog-js";
+import { extractApiError } from "@/lib/errors";
 
 export default function IdeaCard({
   idea,
@@ -31,27 +33,47 @@ export default function IdeaCard({
     if (deleting) return;
     setDeleting(true);
 
+    posthog.capture("idea_delete_requested", {
+      idea_id: idea.id,
+      idea_uuid: idea.uuid,
+      tag: tag ?? null,
+      version: version ?? null,
+    });
+
     try {
       await apiFetch<any>("/api/v1/ideas/delete", {
         method: "POST",
         body: JSON.stringify({ idea_id: idea.id }),
       });
 
+      posthog.capture("idea_delete_succeeded", {
+        idea_id: idea.id,
+        idea_uuid: idea.uuid,
+      });
+
       onDelete?.(idea.id);
     } catch (err: any) {
       console.error("Delete failed", err);
-      setErrorMsg(err?.message || "Failed to delete idea.");
+
+      posthog.capture("idea_delete_failed", {
+        idea_id: idea.id,
+        idea_uuid: idea.uuid,
+        status: err?.status ?? null,
+        is_api_error: Boolean(err?.isApiError),
+      });
+
+      setErrorMsg(extractApiError(err) || "Failed to delete idea.");
       setShowError(true);
     } finally {
       setDeleting(false);
     }
   }
 
+
   const openIdea = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
-    const url = `/idea/${idea.uuid}${`?trend_id=${idea.trend_id}`}${
-      tag ? `&tag=${encodeURIComponent(tag)}${version ? `&version=${version}` : ""}` : ""
-    }`;
+    const url = `/idea/${idea.uuid}${`?trend_id=${idea.trend_id}`}${tag ? `&tag=${encodeURIComponent(tag)}${version ? `&version=${version}` : ""}` : ""
+      }`;
     window.open(url, "_blank");
   };
 

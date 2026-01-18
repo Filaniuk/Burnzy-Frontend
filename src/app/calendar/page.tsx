@@ -22,6 +22,7 @@ import {
 } from "@/types/calendar";
 import Unauthorized from "@/components/Unauthorized";
 import { useAuth } from "@/context/AuthContext";
+import posthog from "posthog-js";
 
 // Central reusable error formatter — consistent across app
 const getErrorMessage = (err: any): string => {
@@ -69,8 +70,8 @@ export default function CalendarPage() {
 
   const [loading, setLoading] = useState(true);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<() => void>(() => {});
-  const [cancelAction, setCancelAction] = useState<() => void>(() => {});
+  const [confirmAction, setConfirmAction] = useState<() => void>(() => { });
+  const [cancelAction, setCancelAction] = useState<() => void>(() => { });
   const [confirmMessage, setConfirmMessage] = useState({
     title: "",
     description: "",
@@ -119,7 +120,7 @@ export default function CalendarPage() {
   // LOAD CALENDAR DATA (guarded by auth)
   // -----------------------------------------------------
   const load = useCallback(async () => {
-    // ✅ do nothing until auth is ready AND user exists
+    posthog.capture("calendar_page_viewed");
     if (authLoading) return;
     if (!user) return;
 
@@ -129,6 +130,7 @@ export default function CalendarPage() {
     setLoading(true);
 
     try {
+      posthog.capture("calendar_load_requested");
       const res = await apiFetch<any>("/api/v1/calendar");
       setCalendarMeta(res.meta);
 
@@ -171,6 +173,11 @@ export default function CalendarPage() {
       setPublished(publishedIdeas);
       setArchived(archivedIdeas);
       setEvents(mappedEvents);
+      posthog.capture("calendar_load_succeeded", {
+        scheduled_count: scheduled.length,
+        unscheduled_count: unsched.length,
+        events_count: mappedEvents.length,
+      });
     } catch (err) {
       openConfirmModal({
         title: "Failed to load calendar",
@@ -193,7 +200,6 @@ export default function CalendarPage() {
   // ENABLE DRAGGING FROM SIDEBAR
   // -----------------------------------------------------
   useEffect(() => {
-    // ✅ don't init draggable until logged in
     if (authLoading) return;
     if (!user) return;
 
@@ -225,6 +231,12 @@ export default function CalendarPage() {
     const dateStr = info.event.startStr;
 
     if (isPast(dateStr)) {
+      posthog.capture("calendar_event_rescheduled_invalid_date", {
+        idea_id: info.event.extendedProps.idea_id,
+        attempted_date: dateStr,
+        status: info.event.extendedProps.status,
+      });
+
       openConfirmModal({
         title: "Invalid Date",
         description: "You cannot schedule content in the past.",
@@ -241,6 +253,13 @@ export default function CalendarPage() {
       return;
     }
 
+    posthog.capture("calendar_event_rescheduled_requested", {
+      idea_id: info.event.extendedProps.idea_id,
+      date: dateStr,
+      status: info.event.extendedProps.status,
+      source: "drag_existing_event",
+    });
+
     try {
       await apiFetch<any>("/api/v1/calendar/schedule", {
         method: "POST",
@@ -250,8 +269,23 @@ export default function CalendarPage() {
           status: info.event.extendedProps.status,
         }),
       });
+
+      posthog.capture("calendar_event_rescheduled_succeeded", {
+        idea_id: info.event.extendedProps.idea_id,
+        date: dateStr,
+        status: info.event.extendedProps.status,
+      });
+
       load();
     } catch (err) {
+      posthog.capture("calendar_event_rescheduled_failed", {
+        idea_id: info.event.extendedProps.idea_id,
+        date: dateStr,
+        status: info.event.extendedProps.status,
+        status_code: (err as any)?.status ?? null,
+        is_api_error: Boolean((err as any)?.isApiError),
+      });
+
       info.revert();
       openConfirmModal({
         title: "Failed to update schedule",
@@ -262,6 +296,7 @@ export default function CalendarPage() {
       });
     }
   };
+
 
   // -----------------------------------------------------
   // DROPPED FROM SIDEBAR → CALENDAR
@@ -404,4 +439,3 @@ export default function CalendarPage() {
     </div>
   );
 }
-          

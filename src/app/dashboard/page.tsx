@@ -23,6 +23,8 @@ import UpcomingTimeline from "./components/UpcomingTimeline";
 
 import { DashboardOverviewResponse } from "@/types/dashboard";
 import Unauthorized from "@/components/Unauthorized";
+import { posthog } from "posthog-js";
+import { extractApiError } from "@/lib/errors";
 
 export default function DashboardPage() {
   const { user, loading, unauthorized } = useAuth();
@@ -36,14 +38,20 @@ export default function DashboardPage() {
   const [errorMessage, setErrorMessage] = useState("Failed to load your dashboard.");
 
   useEffect(() => {
+    posthog.capture("dashboard_page_viewed");
     if (!user) return;
     if (loadedRef.current) return;
     loadedRef.current = true;
 
     async function load() {
       try {
+        posthog.capture("dashboard_overview_requested");
         const res = await apiFetch<DashboardOverviewResponse>("/api/v1/dashboard/overview");
         setData(res);
+        posthog.capture("dashboard_overview_succeeded", {
+          has_primary_channel: Boolean(res?.primary_channel),
+          plan: res?.plan?.name ?? "unknown",
+        });
       } catch (err: any) {
         console.error("Dashboard failed:", err);
         // --- other errors ---
@@ -63,20 +71,33 @@ export default function DashboardPage() {
   // -----------------------------
   const refreshUpcoming = useCallback(async () => {
     try {
+      posthog.capture("dashboard_upcoming_refresh_requested");
+
       const res = await apiFetch<any>("/api/v1/ideas/upcoming", {
         method: "GET",
       });
+
       setData((prev) => {
         if (!prev) return prev;
         return { ...prev, upcoming_ideas: res.data };
       });
 
+      posthog.capture("dashboard_upcoming_refresh_succeeded", {
+        upcoming_count: Array.isArray(res?.data) ? res.data.length : null,
+      });
     } catch (err: any) {
       console.error("Failed to refresh upcoming ideas:", err);
-      setErrorMessage(err?.message || "Failed to refresh upcoming content.");
+
+      posthog.capture("dashboard_upcoming_refresh_failed", {
+        status: err?.status ?? null,
+        is_api_error: Boolean(err?.isApiError),
+      });
+
+      setErrorMessage(extractApiError(err) || "Failed to refresh upcoming content.");
       setErrorOpen(true);
     }
   }, []);
+
 
   // -----------------------------
   // Loading State
@@ -259,10 +280,13 @@ export default function DashboardPage() {
                     {!primary_channel.is_topic && (
                       <>
                         <span>
-                          Subs: {primary_channel.subscribers?.toLocaleString() ?? "N/A"}
+                          Analysis Version: {primary_channel.version ? primary_channel.version : ""}
                         </span>
                         <span>
-                          Avg views: {primary_channel.avg_views?.toLocaleString() ?? "N/A"}
+                          Subscribers: {primary_channel.subscribers?.toLocaleString() ?? "N/A"}
+                        </span>
+                        <span>
+                          Average views: {primary_channel.avg_views?.toLocaleString() ?? "N/A"}
                         </span>
                         <span>
                           Uploads/week:{" "}

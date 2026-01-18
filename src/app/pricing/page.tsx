@@ -9,6 +9,7 @@ import { apiFetch } from "@/lib/api";
 import PricingHeader from "./components/PricingHeader";
 import PricingCard from "./components/PricingCard";
 import CancelSubscriptionNote from "./components/CancelSubscriptionNote";
+import posthog from "posthog-js";
 
 type FeedbackColor = "green" | "red" | "yellow";
 
@@ -214,18 +215,37 @@ export default function PricingPage() {
   );
 
   const confirmDowngrade = (planName: string) => {
+    posthog.capture("pricing_downgrade_modal_opened", {
+      from_plan: currentPlan,
+      to_plan: planName.toLowerCase(),
+    });
+
     setSelectedDowngrade(planName);
     setShowDowngradeModal(true);
   };
 
+
   const handleConfirmedDowngrade = async () => {
     if (!selectedDowngrade) return;
+
+    posthog.capture("pricing_downgrade_confirmed", {
+      from_plan: currentPlan,
+      to_plan: selectedDowngrade.toLowerCase(),
+    });
+
     setShowDowngradeModal(false);
     await handlePlanChange(selectedDowngrade);
   };
 
+
   const handleConfirmedUpgrade = async () => {
     if (!selectedUpgrade) return;
+
+    posthog.capture("pricing_upgrade_confirmed", {
+      from_plan: currentPlan,
+      to_plan: selectedUpgrade.toLowerCase(),
+    });
+
     setShowUpgradeModal(false);
     await handlePlanChange(selectedUpgrade);
   };
@@ -283,15 +303,18 @@ export default function PricingPage() {
   // Handle card click (upgrade / downgrade / free behavior)
   // --------------------------------------------------
   const handlePlanCardClick = (planName: string) => {
-    const currentObj = PLANS.find(
-      (p) => p.name.toLowerCase() === currentPlan
-    );
+    const currentObj = PLANS.find((p) => p.name.toLowerCase() === currentPlan);
     const currentPrice = currentObj?.price ?? 0;
+
     const target = PLANS.find((p) => p.name === planName);
     const targetPrice = target?.price ?? 0;
 
     // Free or no active plan → direct change
     if (!currentPlan || currentPlan === "free") {
+      posthog.capture(`pricing_plan_click_${planName.toLowerCase()}`, {
+        to_plan: planName.toLowerCase(),
+      });
+
       handlePlanChange(planName);
       return;
     }
@@ -300,20 +323,36 @@ export default function PricingPage() {
     const isDowngrade = targetPrice < currentPrice;
 
     if (isDowngrade) {
+      posthog.capture("pricing_downgrade_modal_opened", {
+        from_plan: currentPlan,
+        to_plan: planName.toLowerCase(),
+      });
+
       setSelectedDowngrade(planName);
       setShowDowngradeModal(true);
       return;
     }
 
     if (isUpgrade) {
+      posthog.capture("pricing_upgrade_modal_opened", {
+        from_plan: currentPlan,
+        to_plan: planName.toLowerCase(),
+      });
+
       setSelectedUpgrade(planName);
       setShowUpgradeModal(true);
       return;
     }
 
-    // same tier / unknown → just try changing
+    // same plan click
+    posthog.capture("pricing_plan_click_same_tier", {
+      from_plan: currentPlan,
+      to_plan: planName.toLowerCase(),
+    });
+
     handlePlanChange(planName);
   };
+
 
   // --------------------------------------------------
   // UI
@@ -362,14 +401,33 @@ export default function PricingPage() {
       {/* Cancel subscription link */}
       <CancelSubscriptionNote
         shouldShow={!!user && !!currentPlan && currentPlan !== "free"}
-        onClick={() => setShowCancelModal(true)}
+        onClick={() => {
+          posthog.capture("pricing_cancel_modal_opened", {
+            current_plan: currentPlan,
+            expires_at: expiresAt,
+          });
+
+          setShowCancelModal(true);
+        }}
       />
 
       {/* Cancel Modal */}
       <ConfirmModal
         show={showCancelModal}
-        onCancel={() => setShowCancelModal(false)}
-        onConfirm={handleCancelSubscription}
+        onCancel={() => {
+          posthog.capture("pricing_cancel_modal_closed", {
+            action: "cancel",
+            current_plan: currentPlan,
+          });
+          setShowCancelModal(false);
+        }}
+        onConfirm={() => {
+          posthog.capture("pricing_cancel_modal_confirmed", {
+            current_plan: currentPlan,
+            expires_at: expiresAt,
+          });
+          handleCancelSubscription();
+        }}
         confirmText="Yes, Cancel"
         title="Cancel your subscription?"
         description="Your subscription will remain active until the end of your current billing period. You’ll keep access to paid features until then, and your plan will not renew afterward."
@@ -377,11 +435,25 @@ export default function PricingPage() {
         confirmColor="red"
       />
 
+
       {/* Upgrade Modal */}
       <ConfirmModal
         show={showUpgradeModal}
-        onCancel={() => setShowUpgradeModal(false)}
-        onConfirm={handleConfirmedUpgrade}
+        onCancel={() => {
+          posthog.capture("pricing_upgrade_modal_closed", {
+            action: "cancel",
+            from_plan: currentPlan,
+            to_plan: selectedUpgrade?.toLowerCase() ?? null,
+          });
+          setShowUpgradeModal(false);
+        }}
+        onConfirm={() => {
+          posthog.capture("pricing_upgrade_modal_confirmed", {
+            from_plan: currentPlan,
+            to_plan: selectedUpgrade?.toLowerCase() ?? null,
+          });
+          handleConfirmedUpgrade();
+        }}
         confirmText="Yes, Upgrade"
         title="Upgrade your plan?"
         description="Upgrading now will give you immediate access to the selected plan. A prorated charge for the upgrade will be applied immediately."
@@ -389,17 +461,32 @@ export default function PricingPage() {
         confirmColor="green"
       />
 
+
       {/* Downgrade Modal */}
       <ConfirmModal
         show={showDowngradeModal}
-        onCancel={() => setShowDowngradeModal(false)}
-        onConfirm={handleConfirmedDowngrade}
+        onCancel={() => {
+          posthog.capture("pricing_downgrade_modal_closed", {
+            action: "cancel",
+            from_plan: currentPlan,
+            to_plan: selectedDowngrade?.toLowerCase() ?? null,
+          });
+          setShowDowngradeModal(false);
+        }}
+        onConfirm={() => {
+          posthog.capture("pricing_downgrade_modal_confirmed", {
+            from_plan: currentPlan,
+            to_plan: selectedDowngrade?.toLowerCase() ?? null,
+          });
+          handleConfirmedDowngrade();
+        }}
         confirmText="Yes, Downgrade"
         title="Downgrade your plan?"
         description="Your plan will change immediately. Higher-tier features will be removed now. Any price difference will be prorated and credited to your next invoice."
         loading={loadingPlan !== null}
         confirmColor="red"
       />
+
 
       {/* Feedback Modal */}
       <ConfirmModal

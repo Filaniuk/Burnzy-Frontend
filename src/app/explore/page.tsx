@@ -13,6 +13,7 @@ import ExploreInputCard from "./components/ExploreInputCard";
 import ExploreIdeasGrid from "./components/ExploreIdeasGrid";
 
 import type { ExploreIdeasSuggestionsResponse, ExploreIdeaSuggestion } from "@/types/explore";
+import posthog from "posthog-js";
 
 type AdvancedState = {
   budget: string;
@@ -65,21 +66,46 @@ export default function ExploreIdeasPage() {
   async function submit() {
     setSubmitAttempted(true);
 
-    if (inputTooShort) return;
+    posthog.capture("explore_ideas_submit_clicked", {
+      input_len: creatorInput.trim().length,
+      advanced_open: advancedOpen,
+      format: advanced.format,
+      platform: advanced.platform,
+      has_budget: Boolean(advanced.budget.trim()),
+      has_location: Boolean(advanced.location.trim()),
+      has_desired_length: Boolean(advanced.desired_length.trim()),
+      has_constraints: Boolean(advanced.constraints.trim()),
+    });
+
+    if (inputTooShort) {
+      posthog.capture("explore_ideas_submit_validation_failed", {
+        input_len: creatorInput.trim().length,
+      });
+      return;
+    }
 
     setLoading(true);
     setIdeas([]);
     setBatchUuid(null);
 
+    posthog.capture("explore_ideas_suggestions_requested", {
+      count: 5,
+      format: advanced.format,
+      platform: advanced.platform,
+    });
+
     try {
-      const res = await apiFetch<ExploreIdeasSuggestionsResponse>("/api/v1/explore_ideas/suggestions", {
-        method: "POST",
-        body: JSON.stringify({
-          creator_input: creatorInput.trim(),
-          advanced: advancedPayload,
-          count: 5,
-        }),
-      });
+      const res = await apiFetch<ExploreIdeasSuggestionsResponse>(
+        "/api/v1/explore_ideas/suggestions",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            creator_input: creatorInput.trim(),
+            advanced: advancedPayload,
+            count: 5,
+          }),
+        }
+      );
 
       if (!res?.data?.ideas?.length || !res?.data?.batch_uuid) {
         throw new Error("No suggestions returned.");
@@ -89,7 +115,19 @@ export default function ExploreIdeasPage() {
       setBatchUuid(res.data.batch_uuid);
       setChannelTag(res.data.channel_tag || "");
       setVersion(res.data.version || 1);
+
+      posthog.capture("explore_ideas_suggestions_succeeded", {
+        ideas_count: res?.data?.ideas?.length ?? 0,
+        batch_uuid_present: Boolean(res?.data?.batch_uuid),
+        channel_tag_present: Boolean(res?.data?.channel_tag),
+        version: res?.data?.version ?? null,
+      });
     } catch (err: any) {
+      posthog.capture("explore_ideas_suggestions_failed", {
+        status_code: err?.status ?? null,
+        is_api_error: Boolean(err?.isApiError),
+      });
+
       const msg = extractApiError(err);
       setErrorMsg(msg);
       setErrorOpen(true);
@@ -97,6 +135,7 @@ export default function ExploreIdeasPage() {
       setLoading(false);
     }
   }
+
 
   if (authLoading) return <LoadingAnalysis />;
 

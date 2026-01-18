@@ -5,6 +5,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { fontAnton, fontBebas, fontInter, fontMontserrat, fontOswald, fontRoboto } from "./fonts";
+import { PHProvider } from "./posthog-provider";
 
 export const metadata = {
   title: "Burnzy",
@@ -32,15 +33,16 @@ export default function RootLayout({
       ].join(" ")}
     >
       <body className="bg-[#0F0E17] text-white">
-        <AuthProvider>
-          <Header />
-          <div className="mx-auto w-full max-w-7xl px-5 sm:px-6 lg:px-8 py-10">
-            <main>{children}</main>
-            <div id="drag-portal" />
-          </div>
-
-          <Footer />
-        </AuthProvider>
+        <PHProvider>
+          <AuthProvider>
+            <Header />
+            <div className="mx-auto w-full max-w-7xl px-5 sm:px-6 lg:px-8 py-10">
+              <main>{children}</main>
+              <div id="drag-portal" />
+            </div>
+            <Footer />
+          </AuthProvider>
+        </PHProvider>
       </body>
     </html>
   );

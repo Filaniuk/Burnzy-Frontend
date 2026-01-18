@@ -5,6 +5,8 @@ import { motion } from "framer-motion";
 import { PurpleActionButton } from "@/components/PurpleActionButton";
 import ConfirmModal from "@/app/pricing/components/ConfirmModal";
 import { apiFetch } from "@/lib/api";
+import { extractApiError } from "@/lib/errors";
+import posthog from "posthog-js";
 
 export default function TrendIdeasManager({
   tag,
@@ -30,17 +32,45 @@ export default function TrendIdeasManager({
 
   async function generateMore() {
     setLoadingMore(true);
+
+    posthog.capture("trend_ideas_generate_more_clicked", {
+      tag,
+      version,
+      currently_visible: limit,
+      total_available: safeIdeas.length,
+      last_generated: lastGenerated ?? null,
+    });
+
     try {
       await onGenerateMore();
+
+      posthog.capture("trend_ideas_generate_more_succeeded", {
+        tag,
+        version,
+      });
     } catch (err: any) {
-      setErrorMsg(err?.detail || err?.message || "Failed to generate more ideas.");
+      posthog.capture("trend_ideas_generate_more_failed", {
+        tag,
+        version,
+        status_code: err?.status ?? null,
+        is_api_error: Boolean(err?.isApiError),
+      });
+
+      setErrorMsg(extractApiError(err) || "Failed to generate more ideas.");
       setErrorOpen(true);
     } finally {
       setLoadingMore(false);
     }
   }
 
+
   async function saveIdea(i: any) {
+    posthog.capture("trend_idea_save_requested", {
+      idea_uuid: i.uuid,
+      tag,
+      version,
+    });
+
     try {
       await apiFetch<any>("/api/v1/ideas/save_from_trend", {
         method: "POST",
@@ -52,16 +82,31 @@ export default function TrendIdeasManager({
         }),
       });
 
+      posthog.capture("trend_idea_save_succeeded", {
+        idea_uuid: i.uuid,
+        tag,
+        version,
+      });
+
       setSavedStates((prev) => ({ ...prev, [i.uuid]: true }));
 
       setTimeout(() => {
         setSavedStates((prev) => ({ ...prev, [i.uuid]: false }));
       }, 5000);
     } catch (err: any) {
-      setErrorMsg(err?.detail || err?.message || "Failed to save idea.");
+      posthog.capture("trend_idea_save_failed", {
+        idea_uuid: i.uuid,
+        tag,
+        version,
+        status_code: err?.status ?? null,
+        is_api_error: Boolean(err?.isApiError),
+      });
+
+      setErrorMsg(extractApiError(err) || "Failed to save idea.");
       setErrorOpen(true);
     }
   }
+
 
   return (
     <>

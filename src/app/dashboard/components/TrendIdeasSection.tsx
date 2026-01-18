@@ -7,6 +7,8 @@ import TrendIdeasManager from "@/app/dashboard/components/TrendIdeasManager";
 import ConfirmModal from "@/app/pricing/components/ConfirmModal";
 import { apiFetch } from "@/lib/api";
 import SectionTitle from "./SectionTitle";
+import { extractApiError } from "@/lib/errors";
+import posthog from "posthog-js";
 
 export default function TrendIdeasSection({ tag, version }: { tag: string; version: number }) {
   const [ideas, setIdeas] = useState<any[]>([]);
@@ -27,6 +29,8 @@ export default function TrendIdeasSection({ tag, version }: { tag: string; versi
   const loadIdeas = useCallback(async () => {
     setLoading(true);
 
+    posthog.capture("trend_ideas_load_latest_requested", { tag, version });
+
     try {
       const res = await apiFetch<any>("/api/v1/trend_ideas/latest_full", {
         method: "POST",
@@ -40,20 +44,33 @@ export default function TrendIdeasSection({ tag, version }: { tag: string; versi
       setIdeas(rawIdeas);
       setLastGenerated(res?.data?.last_generated || null);
 
+      posthog.capture("trend_ideas_load_latest_succeeded", {
+        tag,
+        version,
+        ideas_count: rawIdeas.length,
+        last_generated: res?.data?.last_generated ?? null,
+      });
     } catch (err: any) {
-      const n = normalizeError(err);
-
-      if (n.status === 404) {
+      if (err?.status === 404) {
+        posthog.capture("trend_ideas_load_latest_not_found", { tag, version });
         setIdeas([]);
       } else {
-        setErrorMsg(n.detail);
+        posthog.capture("trend_ideas_load_latest_failed", {
+          tag,
+          version,
+          status_code: err?.status ?? null,
+          is_api_error: Boolean(err?.isApiError),
+        });
+
+        setErrorMsg(extractApiError(err) || "Unexpected error.");
         setErrorOpen(true);
         setIdeas([]);
       }
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }, [tag, version]);
+
 
   useEffect(() => {
     if (didLoadRef.current) return;
@@ -65,36 +82,59 @@ export default function TrendIdeasSection({ tag, version }: { tag: string; versi
   async function generateInitialIdeas() {
     setGenerating(true);
 
+    posthog.capture("trend_ideas_generate_initial_clicked", { tag, version });
+    posthog.capture("trend_ideas_generate_initial_requested", { tag, version });
+
     try {
       await apiFetch<any>("/api/v1/trend_ideas", {
         method: "POST",
         body: JSON.stringify({ tag, version }),
       });
 
+      posthog.capture("trend_ideas_generate_initial_succeeded", { tag, version });
+
       await loadIdeas();
     } catch (err: any) {
-      const n = normalizeError(err);
-      setErrorMsg(n.detail);
-      setErrorOpen(true);
-    }
+      posthog.capture("trend_ideas_generate_initial_failed", {
+        tag,
+        version,
+        status_code: err?.status ?? null,
+        is_api_error: Boolean(err?.isApiError),
+      });
 
-    setGenerating(false);
+      setErrorMsg(extractApiError(err) || "Unexpected error.");
+      setErrorOpen(true);
+    } finally {
+      setGenerating(false);
+    }
   }
 
+
   async function generateMoreIdeas() {
+    posthog.capture("trend_ideas_generate_more_requested", { tag, version });
+
     try {
       await apiFetch<any>("/api/v1/trend_ideas/generate_more", {
         method: "POST",
         body: JSON.stringify({ channel_tag: tag, version }),
       });
 
+      posthog.capture("trend_ideas_generate_more_succeeded", { tag, version });
+
       await loadIdeas();
     } catch (err: any) {
-      const n = normalizeError(err);
-      setErrorMsg(n.detail);
+      posthog.capture("trend_ideas_generate_more_failed", {
+        tag,
+        version,
+        status_code: err?.status ?? null,
+        is_api_error: Boolean(err?.isApiError),
+      });
+
+      setErrorMsg(extractApiError(err) || "Unexpected error.");
       setErrorOpen(true);
     }
   }
+
 
   return (
     <>

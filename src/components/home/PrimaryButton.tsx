@@ -1,6 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import posthog from "posthog-js";
 
 interface Props {
   label: string;
@@ -8,10 +9,22 @@ interface Props {
 
 export default function PrimaryButton({ label }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
+
+  function handleClick() {
+    posthog.capture("landing_login_clicked", {
+      label,
+      from: "landing",
+      to: "/login",
+      path: pathname,
+    });
+
+    router.push("/login");
+  }
 
   return (
     <button
-      onClick={() => router.push("/login")}
+      onClick={handleClick}
       className="
         rounded-full bg-[#00F5A0] px-8 py-3 text-sm font-semibold text-black
         shadow-[0_0_12px_rgba(0,245,160,0.35)]

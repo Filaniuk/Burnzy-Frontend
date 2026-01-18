@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { extractApiError } from "@/lib/errors";
 import { PurpleActionButton } from "@/components/PurpleActionButton";
+import posthog from "posthog-js";
 
 type Idea = {
   title: string;
@@ -78,6 +79,10 @@ export default function TrendIdeas({ tag, version }: { tag: string; version: num
     setError(null);
 
     try {
+      posthog.capture("trend_ideas_requested", {
+        tag,
+        version,
+      });
       const data = await apiFetch<TrendIdeasResponse>("/api/v1/trend_ideas", {
         method: "POST",
         body: JSON.stringify({ tag, version }),
@@ -86,8 +91,15 @@ export default function TrendIdeas({ tag, version }: { tag: string; version: num
       setResponse(data);
       setIdeas(data.data.video_ideas || []);
       setCurrentIndex(0);
+      posthog.capture("trend_ideas_succeeded", {
+        tag,
+        version,
+      });
     } catch (err) {
-      console.error("[TrendIdeas] Fetch error:", err);
+      posthog.capture("trend_ideas_failed", {
+        tag,
+        version,
+      });
       setError(extractApiError(err));
     } finally {
       setLoading(false);

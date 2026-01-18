@@ -9,6 +9,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import HistorySection from "./components/HistorySection";
 import Unauthorized from "@/components/Unauthorized";
 import { useAuth } from "@/context/AuthContext";
+import { extractApiError } from "@/lib/errors";
+import { posthog } from "posthog-js";
 
 // MATCHES BACKEND SHAPE EXACTLY
 interface HistoryItem {
@@ -33,20 +35,33 @@ export default function HistoryPage() {
 
   // --- Fetch history ---
   const fetchHistory = useCallback(async () => {
-    // If not logged in, do not fetch
     if (!user) return;
-
     if (loadedRef.current) return;
     loadedRef.current = true;
 
     setLoading(true);
 
+    posthog.capture("history_load_requested");
+
     try {
       const res = await apiFetch<{ data: HistoryItem[] }>("/api/v1/history");
-      setItems(res.data || []);
+      const data = res.data || [];
+      setItems(data);
+
+      posthog.capture("history_load_succeeded", {
+        total: data.length,
+        channels: data.filter((i) => i.analysis_type === "channel").length,
+        topics: data.filter((i) => i.analysis_type === "topic").length,
+      });
     } catch (err: any) {
       console.error("Failed to fetch history:", err);
-      setErrorMessage(err?.message || "Failed to load your history.");
+
+      posthog.capture("history_load_failed", {
+        status_code: err?.status ?? null,
+        is_api_error: Boolean(err?.isApiError),
+      });
+
+      setErrorMessage(extractApiError(err) || "Failed to load your history.");
       setErrorOpen(true);
     } finally {
       setLoading(false);

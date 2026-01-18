@@ -33,7 +33,7 @@ export default function IdeaContentAdvice({ items }: { items: string[] }) {
         </ul>
       ) : (
         <p className="mt-2 text-xs text-neutral-500">
-          Tap to expand (4 short points).
+          Tap to expand
         </p>
       )}
     </section>

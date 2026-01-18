@@ -15,6 +15,7 @@ import LoadingThumbnails from "./components/LoadingThumbnails";
 import type { GeneratedThumbnail } from "@/types/thumbnail";
 import { useAuth } from "@/context/AuthContext";
 import Unauthorized from "@/components/Unauthorized";
+import { posthog } from "posthog-js";
 
 type ThumbnailsResponse = {
   status: string;
@@ -62,14 +63,23 @@ export default function ThumbnailsPage() {
   }, []);
 
   const fetchThumbnails = useCallback(async () => {
-    // Only run when logged in
+    posthog.capture("thumbnails_page_viewed");
     if (!user) return;
-
+    posthog.capture("thumbnails_fetch_started");
     try {
       setLoading(true);
       const res = await apiFetch<ThumbnailsResponse>("/api/v1/thumbnails?limit=90&offset=0");
       setItems(res.data || []);
+      posthog.capture("thumbnails_loaded", {
+        count: (res.data || []).length,
+        limit: 90,
+        offset: 0,
+      });
     } catch (err: any) {
+      posthog.capture("thumbnails_load_failed", {
+        status_code: err?.status ?? null,
+        is_api_error: Boolean(err?.isApiError),
+      });
       openModal("Failed to load thumbnails", extractApiError(err), "red");
     } finally {
       setLoading(false);
@@ -77,14 +87,20 @@ export default function ThumbnailsPage() {
   }, [user, openModal]);
 
   const fetchIdeas = useCallback(async () => {
-    // Only run when logged in
     if (!user) return;
-
+    posthog.capture("thumbnail_ideas_fetch_started");
     try {
       setIdeasLoading(true);
       const res = await apiFetch<any>("/api/v1/trend_ideas/latest_full", { method: "GET" });
       setIdeas(res.data.ideas || []);
+      posthog.capture("thumbnail_ideas_loaded", {
+        count: (res.data.ideas || []).length,
+      });
     } catch (err: any) {
+      posthog.capture("thumbnail_ideas_load_failed", {
+        status_code: err?.status ?? null,
+        is_api_error: Boolean(err?.isApiError),
+      });
       openModal("Failed to load thumbnails", extractApiError(err), "red");
     } finally {
       setIdeasLoading(false);
@@ -109,6 +125,14 @@ export default function ThumbnailsPage() {
 
     try {
       setGenerating(true);
+      posthog.capture("thumbnail_generation_started", {
+        idea_uuid: idea.uuid,
+        idea_title: idea.title || null,
+        trend_idea_id: idea.trend_idea_id ?? null,
+        active_idx: activeIdx,
+        has_custom_concept: !!thumbnailConcept,
+        concept_length: thumbnailConcept?.length ?? 0,
+      });
 
       await apiFetch(`/api/v1/generate_thumbnail/${idea.uuid}`, {
         method: "POST",
@@ -118,9 +142,24 @@ export default function ThumbnailsPage() {
           thumbnail_concept: thumbnailConcept,
         }),
       });
-
+      posthog.capture("thumbnail_generation_succeeded", {
+        idea_uuid: idea.uuid,
+        idea_title: idea.title || null,
+        trend_idea_id: idea.trend_idea_id ?? null,
+        active_idx: activeIdx,
+        concept_length: thumbnailConcept?.length ?? 0,
+      });
       await fetchThumbnails();
     } catch (err: any) {
+      posthog.capture("thumbnail_generation_failed", {
+        idea_uuid: idea.uuid,
+        idea_title: idea.title || null,
+        trend_idea_id: idea.trend_idea_id ?? null,
+        active_idx: activeIdx,
+        concept_length: thumbnailConcept?.length ?? 0,
+        status_code: err?.status ?? null,
+        is_api_error: Boolean(err?.isApiError),
+      });
       openModal("Thumbnail generation failed", extractApiError(err), "red");
     } finally {
       setGenerating(false);

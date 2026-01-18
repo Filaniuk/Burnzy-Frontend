@@ -9,6 +9,7 @@ import ConfirmModal from "@/app/pricing/components/ConfirmModal";
 import { apiFetch } from "@/lib/api";
 import { extractApiError } from "@/lib/errors";
 import { thumbnailFileUrl } from "@/lib/thumbnails";
+import posthog from "posthog-js";
 
 type ThumbnailDetailResponse = {
   status: string;
@@ -64,7 +65,6 @@ export default function ThumbnailCard({
   useEffect(() => {
     if (!open) return;
     setActive(item);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   async function fetchDetail(id: string) {
@@ -83,7 +83,11 @@ export default function ThumbnailCard({
       const fd = new FormData();
       fd.append("mask", args.mask, "mask.png");
       fd.append("prompt", args.prompt);
-
+      posthog.capture("thumbnail_modify_started", {
+        thumbnail_id: row.id,
+        version: row.version,
+        prompt_length: args.prompt?.length ?? 0,
+      });
       const res = await apiFetch<EditResponse>(`/api/v1/thumbnails/${row.id}/modify`, {
         method: "POST",
         body: fd,
@@ -103,7 +107,18 @@ export default function ThumbnailCard({
         description: "A new thumbnail version was created successfully.",
         color: "green",
       });
+      posthog.capture("thumbnail_modify_succeeded", {
+        previous_thumbnail_id: row.id,
+        previous_version: row.version,
+        new_thumbnail_id: newId,
+      });
+
     } catch (err: any) {
+      posthog.capture("thumbnail_modify_failed", {
+        thumbnail_id: row.id,
+        version: row.version,
+        error: extractApiError(err),
+      });
       setModal({
         show: true,
         title: "Modify failed",
@@ -126,6 +141,13 @@ export default function ThumbnailCard({
       fd.append("mask", args.mask, "mask.png");
       fd.append("face_image", args.faceImage);
       fd.append("prompt", args.prompt);
+      posthog.capture("thumbnail_swap_face_started", {
+        thumbnail_id: row.id,
+        version: row.version,
+        prompt_length: args.prompt?.length ?? 0,
+        face_image_name: args.faceImage?.name ?? null,
+        face_image_size: args.faceImage?.size ?? null,
+      });
 
       const res = await apiFetch<EditResponse>(`/api/v1/thumbnails/${row.id}/swap-face`, {
         method: "POST",
@@ -146,7 +168,18 @@ export default function ThumbnailCard({
         description: "A new thumbnail version was created successfully.",
         color: "green",
       });
+      posthog.capture("thumbnail_swap_face_succeeded", {
+        previous_thumbnail_id: row.id,
+        previous_version: row.version,
+        new_thumbnail_id: newId,
+      });
     } catch (err: any) {
+      posthog.capture("thumbnail_swap_face_failed", {
+        thumbnail_id: row.id,
+        version: row.version,
+        error: extractApiError(err),
+      });
+
       setModal({
         show: true,
         title: "Swap face failed",
@@ -165,7 +198,11 @@ export default function ThumbnailCard({
       const fd = new FormData();
       fd.append("image", args.image, "thumbnail.png");
       fd.append("payload", JSON.stringify(args.payload));
-
+      posthog.capture("thumbnail_add_text_started", {
+        thumbnail_id: row.id,
+        version: row.version,
+        payload_keys: args.payload ? Object.keys(args.payload) : [],
+      });
       const res = await apiFetch<EditResponse>(`/api/v1/thumbnails/${row.id}/add-text`, {
         method: "POST",
         body: fd,
@@ -185,7 +222,17 @@ export default function ThumbnailCard({
         description: "A new thumbnail version was created successfully.",
         color: "green",
       });
+      posthog.capture("thumbnail_add_text_succeeded", {
+        previous_thumbnail_id: row.id,
+        previous_version: row.version,
+        new_thumbnail_id: newId,
+      });
     } catch (err: any) {
+      posthog.capture("thumbnail_add_text_failed", {
+        thumbnail_id: row.id,
+        version: row.version,
+        error: extractApiError(err),
+      });
       setModal({
         show: true,
         title: "Add text failed",
@@ -245,6 +292,14 @@ export default function ThumbnailCard({
             {displayHref ? (
               <a
                 href={`${displayHref}?download=1`}
+                onClick={() => {
+                  posthog.capture("thumbnail_download_clicked", {
+                    thumbnail_id: item.id,
+                    version: display.version,
+                    title: display.title || item.title || null,
+                    status: item.status,
+                  });
+                }}
                 className="h-9 w-9 rounded-2xl bg-[#0F0E17]/80 border border-[#2E2D39] hover:border-[#00F5A0]/70 flex items-center justify-center transition"
                 title="Download Thumbnail"
               >
@@ -278,7 +333,16 @@ export default function ThumbnailCard({
                   <PurpleActionButton
                     label="Edit Thumbnail"
                     size={isSmUp ? "md" : "sm"}
-                    onClick={() => setOpen(true)}
+                    onClick={() => {
+                      posthog.capture("thumbnail_edit_modal_opened", {
+                        thumbnail_id: item.id,
+                        version: display.version,
+                        title: display.title || item.title || null,
+                        status: item.status,
+                      });
+
+                      setOpen(true);
+                    }}
                     disabled={!displayHref}
                   />
                 </div>

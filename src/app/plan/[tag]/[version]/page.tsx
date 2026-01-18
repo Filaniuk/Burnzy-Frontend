@@ -1,9 +1,10 @@
 "use client";
 
 import { useSearchParams, useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { motion } from "framer-motion";
+import posthog from "posthog-js";
 
 import ContentPlanHeader from "./components/ContentPlanHeader";
 import WeeklyPlanSection from "./components/WeeklyPlanSection";
@@ -21,8 +22,8 @@ export default function ContentPlanPage() {
   const uploadsPerWeek = Number(searchParams.get("uploads") || 2);
   const weeks = Number(searchParams.get("weeks") || 3);
 
-  // NEW
-  const startDate = (searchParams.get("start_date") || "").trim(); // "YYYY-MM-DD" or ""
+  // "YYYY-MM-DD" or ""
+  const startDate = (searchParams.get("start_date") || "").trim();
 
   const [plan, setPlan] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,17 +36,60 @@ export default function ContentPlanPage() {
   });
 
   const [confirmImport, setConfirmImport] = useState(false);
+
   const fetchRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    // include startDate in the key so it actually refetches
-    const key = `${tag}-${version}-${uploadsPerWeek}-${weeks}-${startDate}`;
+  // PostHog tracking refs
+  const viewedRef = useRef(false);
+  const planReqStartedAtRef = useRef<number | null>(null);
+  const importStartedAtRef = useRef<number | null>(null);
 
-    if (fetchRef.current === key) return;
-    fetchRef.current = key;
+  // -----------------------------
+  // Stable computed values
+  // -----------------------------
+  const requestKey = useMemo(() => {
+    return `${tag}-${version}-${uploadsPerWeek}-${weeks}-${startDate || "none"}`;
+  }, [tag, version, uploadsPerWeek, weeks, startDate]);
+
+  const planUuid = plan?.plan_uuid ?? null;
+
+  // -----------------------------
+  // Track page view (once)
+  // -----------------------------
+  useEffect(() => {
+    if (viewedRef.current) return;
+    viewedRef.current = true;
+
+    posthog.capture("content_plan_page_viewed", {
+      tag,
+      version,
+      uploads_per_week: uploadsPerWeek,
+      weeks,
+      has_start_date: Boolean(startDate),
+    });
+  }, [tag, version, uploadsPerWeek, weeks, startDate]);
+
+  // -----------------------------
+  // Fetch plan
+  // -----------------------------
+  useEffect(() => {
+    if (fetchRef.current === requestKey) return;
+    fetchRef.current = requestKey;
+
+    let cancelled = false;
 
     async function load() {
       setLoading(true);
+      planReqStartedAtRef.current = Date.now();
+
+      posthog.capture("content_plan_requested", {
+        tag,
+        version,
+        uploads_per_week: uploadsPerWeek,
+        weeks,
+        start_date: startDate || null,
+        request_key: requestKey,
+      });
 
       try {
         const res = await apiFetch<any>("/api/v1/content_plan", {
@@ -55,7 +99,6 @@ export default function ContentPlanPage() {
             uploads_per_week: uploadsPerWeek,
             weeks,
             version,
-            // send only if present; backend accepts null anyway
             start_date: startDate || null,
           }),
         });
@@ -64,9 +107,44 @@ export default function ContentPlanPage() {
           throw new Error("Invalid or missing plan data.");
         }
 
+        if (cancelled) return;
+
         setPlan(res.data);
+
+        posthog.capture("content_plan_succeeded", {
+          tag,
+          version,
+          uploads_per_week: uploadsPerWeek,
+          weeks,
+          has_start_date: Boolean(startDate),
+          cached: Boolean(res?.meta?.cached),
+          plan_uuid: res?.data?.plan_uuid ?? null,
+          week_count: Array.isArray(res?.data?.weekly_plan)
+            ? res.data.weekly_plan.length
+            : null,
+          ms:
+            planReqStartedAtRef.current != null
+              ? Date.now() - planReqStartedAtRef.current
+              : null,
+        });
       } catch (err: any) {
+        if (cancelled) return;
+
         console.error("[ContentPlan] Failed:", err);
+
+        posthog.capture("content_plan_failed", {
+          tag,
+          version,
+          uploads_per_week: uploadsPerWeek,
+          weeks,
+          has_start_date: Boolean(startDate),
+          status_code: err?.status ?? null,
+          is_api_error: Boolean(err?.isApiError),
+          ms:
+            planReqStartedAtRef.current != null
+              ? Date.now() - planReqStartedAtRef.current
+              : null,
+        });
 
         setFeedback({
           show: true,
@@ -76,16 +154,31 @@ export default function ContentPlanPage() {
             "Your content plan could not be generated. Please try again.",
           color: "red",
         });
+
+        setPlan(null);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
     load();
-  }, [tag, version, uploadsPerWeek, weeks, startDate]);
 
+    return () => {
+      cancelled = true;
+    };
+  }, [requestKey, tag, version, uploadsPerWeek, weeks, startDate]);
+
+  // -----------------------------
+  // Import plan
+  // -----------------------------
   async function handleImportPlan() {
     if (!plan?.plan_uuid) {
+      posthog.capture("content_plan_import_blocked", {
+        reason: "missing_plan_uuid",
+        tag,
+        version,
+      });
+
       setFeedback({
         show: true,
         title: "Missing Plan ID",
@@ -94,6 +187,15 @@ export default function ContentPlanPage() {
       });
       return;
     }
+
+    importStartedAtRef.current = Date.now();
+
+    posthog.capture("content_plan_import_requested", {
+      plan_uuid: plan.plan_uuid,
+      tag,
+      version,
+      mode: "filming",
+    });
 
     try {
       await apiFetch<any>("/api/v1/calendar/import_plan", {
@@ -104,6 +206,17 @@ export default function ContentPlanPage() {
         }),
       });
 
+      posthog.capture("content_plan_import_succeeded", {
+        plan_uuid: plan.plan_uuid,
+        tag,
+        version,
+        mode: "filming",
+        ms:
+          importStartedAtRef.current != null
+            ? Date.now() - importStartedAtRef.current
+            : null,
+      });
+
       setFeedback({
         show: true,
         title: "Plan Imported",
@@ -111,6 +224,19 @@ export default function ContentPlanPage() {
         color: "green",
       });
     } catch (err: any) {
+      posthog.capture("content_plan_import_failed", {
+        plan_uuid: plan.plan_uuid,
+        tag,
+        version,
+        mode: "filming",
+        status_code: err?.status ?? null,
+        is_api_error: Boolean(err?.isApiError),
+        ms:
+          importStartedAtRef.current != null
+            ? Date.now() - importStartedAtRef.current
+            : null,
+      });
+
       setFeedback({
         show: true,
         title: "Import Failed",
@@ -120,6 +246,9 @@ export default function ContentPlanPage() {
     }
   }
 
+  // -----------------------------
+  // Render states
+  // -----------------------------
   if (loading) {
     return (
       <LoadingAnalysis
@@ -143,13 +272,22 @@ export default function ContentPlanPage() {
         <p className="text-neutral-400 mb-6 max-w-md">
           We couldn’t generate a plan. Try again later.
         </p>
+
         <button
-          onClick={() => router.push("/dashboard")}
+          onClick={() => {
+            posthog.capture("content_plan_back_clicked", {
+              from: "empty_state",
+              tag,
+              version,
+            });
+            router.push("/dashboard");
+          }}
           className="px-5 py-2.5 rounded-xl bg-[#1B1A24] hover:bg-[#2E2D39] text-neutral-300 border border-[#2E2D39] transition-all"
         >
           ← Back
         </button>
 
+        {/* MODAL: DO NOT TRACK */}
         <ConfirmModal
           show={feedback.show}
           onConfirm={() => setFeedback({ ...feedback, show: false })}
@@ -172,7 +310,16 @@ export default function ContentPlanPage() {
           <PurpleActionButton
             label="📅 Import Plan To Calendar"
             size="lg"
-            onClick={() => setConfirmImport(true)}
+            onClick={() => {
+              // track intent, not the modal itself
+              posthog.capture("content_plan_import_intent", {
+                plan_uuid: planUuid,
+                tag,
+                version,
+              });
+
+              setConfirmImport(true);
+            }}
           />
           <p className="text-sm text-neutral-400">
             (You can remove or hide ideas later in your calendar)
@@ -187,7 +334,15 @@ export default function ContentPlanPage() {
 
         <div className="text-center mt-14 space-y-6">
           <button
-            onClick={() => history.back()}
+            onClick={() => {
+              posthog.capture("content_plan_back_clicked", {
+                from: "plan_view",
+                plan_uuid: planUuid,
+                tag,
+                version,
+              });
+              history.back();
+            }}
             className="px-5 py-2.5 rounded-xl bg-[#1B1A24] hover:bg-[#2E2D39]
                        text-neutral-300 border border-[#2E2D39] transition-all"
           >
@@ -196,6 +351,7 @@ export default function ContentPlanPage() {
         </div>
       </div>
 
+      {/* CONFIRM IMPORT (MODAL UI, DO NOT TRACK OPEN/CLOSE) */}
       <ConfirmModal
         show={confirmImport}
         onCancel={() => setConfirmImport(false)}
@@ -209,6 +365,7 @@ export default function ContentPlanPage() {
         confirmColor="green"
       />
 
+      {/* FEEDBACK MODAL (DO NOT TRACK) */}
       <ConfirmModal
         show={feedback.show}
         onCancel={() => setFeedback({ ...feedback, show: false })}

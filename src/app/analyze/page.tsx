@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { apiFetch, APIError } from "@/lib/api";
 import { extractApiError } from "@/lib/errors";
+import posthog from "posthog-js";
 
 import AnalysisReport from "@/app/analyze/components/AnalysisReport";
 import LoadingAnalysis from "@/components/LoadingAnalysis";
@@ -46,6 +47,7 @@ export default function AnalyzePage() {
   // Load existing analysis from URL
   // ---------------------------------------------
   useEffect(() => {
+    posthog.capture("analyze_page_viewed");
     if (!queryTag) return;
     if (loadedRef.current) return;
 
@@ -62,7 +64,9 @@ export default function AnalyzePage() {
 
         setMode(queryType === "topic" ? "topic" : detectedType);
         setResult({ ...res.data, meta: res.meta });
-
+        posthog.capture("analysis_existing_loaded", {
+          mode: detectedType,
+        });
       } catch (err) {
         console.error("Load Existing Error:", err);
         setFeedback({
@@ -120,23 +124,37 @@ export default function AnalyzePage() {
         ? { channel_url: input, user_query: context }
         : { topic: input, user_goal: context };
 
+    posthog.capture("analysis_requested", {
+      mode,
+      has_context: Boolean(context?.trim()),
+      force_refresh: Boolean(forceRefresh),
+    });
     try {
       const data = await apiFetch<AnalysisResponse>(path, {
         method: "POST",
         body: JSON.stringify(body),
       });
 
+
+
       if (!data?.data) throw new APIError("No data returned from server.");
 
       setResult({ ...data.data, meta: data.meta });
-
+      posthog.capture("analysis_succeeded", {
+        mode,
+      });
     } catch (err) {
       console.error("Analysis Submit Error:", err);
+      const msg = extractApiError(err);
       setFeedback({
         show: true,
         title: "Analysis Failed",
-        description: extractApiError(err),
+        description: msg,
         color: "red",
+      });
+      posthog.capture("analysis_failed", {
+        mode,
+        status: (err as any)?.status ?? null,
       });
     } finally {
       setLoading(false);

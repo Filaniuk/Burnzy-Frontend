@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/api";
 import { extractApiError } from "@/lib/errors";   // ✅ ADD THIS
 import { motion, AnimatePresence, easeOut } from "framer-motion";
 import { BarChart2, Zap, TrendingUp, Lightbulb } from "lucide-react";
+import posthog from "posthog-js";
 
 type Insight = {
   title: string;
@@ -50,6 +51,10 @@ export default function ChannelInsights({
       setError(null);
 
       try {
+        posthog.capture("channel_insights_requested", {
+          tag,
+          version,
+        });
         const res = await apiFetch<ChannelInsightsResponse>(
           "/api/v1/channel_insights",
           {
@@ -60,9 +65,19 @@ export default function ChannelInsights({
 
         setInsights(res.data.recommendations || []);
         setScale(res.data.scale ?? null);
-
+        posthog.capture("channel_insights_succeeded", {
+          tag,
+          version,
+          insights_count: (res.data.recommendations || []).length,
+          has_scale: res.data.scale != null,
+        });
       } catch (err) {
-        console.error("Insights Error:", err);
+        posthog.capture("channel_insights_failed", {
+          tag,
+          version,
+          status: (err as any)?.status ?? null,
+          is_api_error: Boolean((err as any)?.isApiError),
+        });
         setError(extractApiError(err));   // ✅ Now user-friendly
       } finally {
         setLoading(false);

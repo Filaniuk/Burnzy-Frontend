@@ -5,6 +5,8 @@ import { apiFetch } from "@/lib/api";
 import { IdeaStatus } from "@/types/calendar";
 import { createPortal } from "react-dom";
 import ConfirmModal from "@/app/pricing/components/ConfirmModal";
+import { posthog } from "posthog-js";
+import { extractApiError } from "@/lib/errors";
 
 interface ScheduleModalProps {
   close: () => void;
@@ -55,6 +57,12 @@ export default function ScheduleModal({
   async function submit() {
     setLoading(true);
 
+    posthog.capture("calendar_schedule_requested", {
+      idea_id: Number(ideaId),
+      date,
+      status,
+    });
+
     try {
       await apiFetch<any>("/api/v1/calendar/schedule", {
         method: "POST",
@@ -65,16 +73,32 @@ export default function ScheduleModal({
         }),
       });
 
+      posthog.capture("calendar_schedule_succeeded", {
+        idea_id: Number(ideaId),
+        date,
+        status,
+      });
+
       await reload();
       close();
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err?.message || "Failed to schedule idea.");
+
+      posthog.capture("calendar_schedule_failed", {
+        idea_id: Number(ideaId),
+        date,
+        status,
+        status_code: err?.status ?? null,
+        is_api_error: Boolean(err?.isApiError),
+      });
+
+      setErrorMsg(extractApiError(err) || "Failed to schedule idea.");
       setShowError(true);
     } finally {
       setLoading(false);
     }
   }
+
 
   const modalBody = (
     <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">

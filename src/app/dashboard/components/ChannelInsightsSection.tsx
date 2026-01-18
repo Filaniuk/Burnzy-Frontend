@@ -6,6 +6,8 @@ import { PurpleActionButton } from "@/components/PurpleActionButton";
 import { apiFetch } from "@/lib/api";
 import SectionTitle from "./SectionTitle";
 import ConfirmModal from "@/app/pricing/components/ConfirmModal";
+import posthog from "posthog-js";
+import { extractApiError } from "@/lib/errors";
 
 export default function ChannelInsightsSection({
   primary_channel,
@@ -22,15 +24,18 @@ export default function ChannelInsightsSection({
   const [errorOpen, setErrorOpen] = useState(false);
   const [errorMsg, setErrorMsg] = useState("An unexpected error occurred.");
 
-  const normalizeError = (err: any) => {
-    if (!err || typeof err !== "object") {
-      return "Unknown error occurred.";
-    }
-    return err.detail || err.message || "Unexpected error.";
-  };
-
   const fetchInsights = async () => {
     setLoading(true);
+
+    posthog.capture("dashboard_channel_insights_cta_clicked", {
+      tag: primary_channel.tag,
+      version: primary_channel.version ?? null,
+    });
+
+    posthog.capture("dashboard_channel_insights_requested", {
+      tag: primary_channel.tag,
+      version: primary_channel.version ?? null,
+    });
 
     try {
       const json = await apiFetch<any>("/api/v1/channel_insights", {
@@ -41,10 +46,26 @@ export default function ChannelInsightsSection({
         }),
       });
 
-      setInsights(json.data.recommendations || []);
+      const recs = json.data.recommendations || [];
+
+      setInsights(recs);
       setScale(json.data.scale ?? null);
+
+      posthog.capture("dashboard_channel_insights_succeeded", {
+        tag: primary_channel.tag,
+        version: primary_channel.version ?? null,
+        insights_count: recs.length,
+        has_scale: json.data.scale != null,
+      });
     } catch (rawErr: any) {
-      const msg = normalizeError(rawErr);
+      posthog.capture("dashboard_channel_insights_failed", {
+        tag: primary_channel.tag,
+        version: primary_channel.version ?? null,
+        status: rawErr?.status ?? null,
+        is_api_error: Boolean(rawErr?.isApiError),
+      });
+
+      const msg = extractApiError(rawErr) || "Unexpected error.";
       console.error("Insights fetch error:", msg);
       setErrorMsg(msg);
       setErrorOpen(true);
@@ -52,6 +73,7 @@ export default function ChannelInsightsSection({
       setLoading(false);
     }
   };
+
 
   if (primary_channel.is_topic) return null;
 

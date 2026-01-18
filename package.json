@@ -17,9 +17,11 @@
     "@fullcalendar/react": "^6.1.19",
     "@fullcalendar/timegrid": "^6.1.19",
     "@hello-pangea/dnd": "^18.0.1",
+    "@posthog/react": "^1.5.2",
     "framer-motion": "^12.23.24",
     "fullcalendar": "^6.1.19",
     "next": "16.0.1",
+    "posthog-js": "^1.328.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "recharts": "^3.4.1"

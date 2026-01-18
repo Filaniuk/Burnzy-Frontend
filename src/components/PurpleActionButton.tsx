@@ -15,6 +15,7 @@ interface PurpleActionButtonProps {
     gradientFrom?: string;
     gradientTo?: string;
     underline?: boolean;
+    labelOnLoading?: string;
 }
 
 export const PurpleActionButton: React.FC<PurpleActionButtonProps> = ({
@@ -22,6 +23,7 @@ export const PurpleActionButton: React.FC<PurpleActionButtonProps> = ({
     disabled = false,
     loading = false,
     label,
+    labelOnLoading = "Loading...",
     icon,
     className = "",
     size = "md",
@@ -53,7 +55,7 @@ export const PurpleActionButton: React.FC<PurpleActionButtonProps> = ({
             ) : (
                 icon && <span className="text-lg">{icon}</span>
             )}
-            {loading ? "Loading..." : label}
+            {loading ? labelOnLoading : label}
         </motion.button>
     );
 };

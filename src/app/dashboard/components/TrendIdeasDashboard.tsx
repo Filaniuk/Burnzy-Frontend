@@ -6,6 +6,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import ConfirmModal from "@/app/pricing/components/ConfirmModal";
 import { PurpleActionButton } from "@/components/PurpleActionButton";
+import { extractApiError } from "@/lib/errors";
+import posthog from "posthog-js";
 
 function cn(...classes: Array<string | false | undefined | null>) {
   return classes.filter(Boolean).join(" ");
@@ -81,6 +83,14 @@ export default function TrendIdeasDashboard({
 
   async function saveIdea() {
     try {
+      posthog.capture("trend_idea_save_requested", {
+        idea_uuid: idea.uuid,
+        tag,
+        version,
+        trend_score: idea.trend_score ?? null,
+        format: idea.format ?? null,
+      });
+
       await apiFetch<any>("/api/v1/ideas/save_from_trend", {
         method: "POST",
         body: JSON.stringify({
@@ -91,15 +101,31 @@ export default function TrendIdeasDashboard({
         }),
       });
 
+      posthog.capture("trend_idea_save_succeeded", {
+        idea_uuid: idea.uuid,
+        tag,
+        version,
+      });
+
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (rawErr: any) {
       console.error("Save trend idea failed:", rawErr);
-      setErrorMessage(normalizeError(rawErr));
+
+      posthog.capture("trend_idea_save_failed", {
+        idea_uuid: idea.uuid,
+        tag,
+        version,
+        status_code: rawErr?.status ?? null,
+        is_api_error: Boolean(rawErr?.isApiError),
+      });
+
+      setErrorMessage(extractApiError(rawErr) || "Unexpected error occurred.");
       setErrorOpen(true);
       setSaved(false);
     }
   }
+
 
   const nextIdea = () => {
     setDirection("right");

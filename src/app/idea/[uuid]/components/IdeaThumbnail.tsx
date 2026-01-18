@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import ConfirmModal from "@/app/pricing/components/ConfirmModal";
 import { apiFetch } from "@/lib/api";
 import { PurpleActionButton } from "@/components/PurpleActionButton";
+import posthog from "posthog-js";
 
 type GenerateThumbnailResponse = {
   data?: {
@@ -94,7 +95,17 @@ export default function IdeaThumbnail({ v, ideaUuid, trendId }: Props) {
       const conceptToSend =
         variations.length > 0
           ? variations[idx]
-          : (typeof v?.thumbnail_concept === "string" ? v.thumbnail_concept.trim() : "");
+          : typeof v?.thumbnail_concept === "string"
+            ? v.thumbnail_concept.trim()
+            : "";
+
+      posthog.capture("thumbnail_generate_requested", {
+        idea_uuid: ideaUuid,
+        trend_id: trendId ?? null,
+        variations_count: variations.length,
+        active_idx: variations.length > 0 ? idx : null,
+        has_concept: Boolean(conceptToSend?.trim()),
+      });
 
       const res = (await apiFetch<any>(`/api/v1/generate_thumbnail/${ideaUuid}`, {
         method: "POST",
@@ -116,6 +127,20 @@ export default function IdeaThumbnail({ v, ideaUuid, trendId }: Props) {
 
       setNewThumbnail(url);
 
+      posthog.capture("thumbnail_generate_succeeded", {
+        idea_uuid: ideaUuid,
+        trend_id: trendId ?? null,
+        variations_count: variations.length,
+        active_idx: variations.length > 0 ? idx : null,
+        url_source: res?.data?.thumbnail_url
+          ? "thumbnail_url"
+          : res?.data?.image_url
+            ? "image_url"
+            : res?.data?.thumbnail_id
+              ? "thumbnail_id"
+              : "unknown",
+      });
+
       try {
         const img = new Image();
         img.src = url;
@@ -124,6 +149,15 @@ export default function IdeaThumbnail({ v, ideaUuid, trendId }: Props) {
         // ignore preload errors
       }
     } catch (err: any) {
+      posthog.capture("thumbnail_generate_failed", {
+        idea_uuid: ideaUuid,
+        trend_id: trendId ?? null,
+        variations_count: variations.length,
+        active_idx: variations.length > 0 ? activeIdx : null,
+        status_code: err?.status ?? null,
+        is_api_error: Boolean(err?.isApiError),
+      });
+
       setModal({
         show: true,
         title: "Thumbnail Generation Failed",
@@ -137,7 +171,6 @@ export default function IdeaThumbnail({ v, ideaUuid, trendId }: Props) {
       setThumbLoading(false);
     }
   }
-
 
   return (
     <>

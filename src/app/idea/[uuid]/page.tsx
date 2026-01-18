@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { Copy, CheckCircle2, Loader2 } from "lucide-react";
+import { Copy, Loader2 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import posthog from "posthog-js";
 
 import IdeaBuilderWizard from "./components/IdeaBuilderWizard";
 import IdeaThumbnail from "./components/IdeaThumbnail";
@@ -118,13 +119,15 @@ function Checklist({
             disabled={disabled}
             onClick={() => onToggle(x)}
             className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl border text-sm transition
-              ${checked
-                ? "border-[#00F5A0]/60 bg-[#00F5A0]/10 text-neutral-100"
-                : "border-[#2E2D39] bg-[#14131C] text-neutral-200 hover:border-[#6C63FF]/50"
+              ${
+                checked
+                  ? "border-[#00F5A0]/60 bg-[#00F5A0]/10 text-neutral-100"
+                  : "border-[#2E2D39] bg-[#14131C] text-neutral-200 hover:border-[#6C63FF]/50"
               }
-              ${disabled
-                ? "opacity-60 cursor-not-allowed hover:border-[#2E2D39]"
-                : ""
+              ${
+                disabled
+                  ? "opacity-60 cursor-not-allowed hover:border-[#2E2D39]"
+                  : ""
               }`}
           >
             <span className="text-left">{x}</span>
@@ -181,6 +184,32 @@ export default function IdeaPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
+  // -----------------------------
+  // PostHog refs
+  // -----------------------------
+  const viewTrackedRef = useRef(false);
+  const viewModeRef = useRef<"builder" | "plan" | null>(null);
+  const finalizeStartRef = useRef<number | null>(null);
+
+  // -----------------------------
+  // Track page view (1x)
+  // -----------------------------
+  useEffect(() => {
+    if (viewTrackedRef.current) return;
+    if (!ideaUuid) return;
+
+    viewTrackedRef.current = true;
+
+    posthog.capture("idea_page_viewed", {
+      idea_uuid: ideaUuid,
+      tag,
+      version,
+      trend_id: trendId ?? null,
+      explore_batch_uuid: exploreBatchUuid ?? null,
+      has_tag: Boolean(tag),
+    });
+  }, [ideaUuid, tag, version, trendId, exploreBatchUuid]);
+
   const onSuggestionLoaded = (data: any) => {
     setSuggestionData(data);
     setError("");
@@ -200,6 +229,9 @@ export default function IdeaPage() {
     setChangeRequest("");
   };
 
+  // -----------------------------
+  // Cache bootstrap
+  // -----------------------------
   useEffect(() => {
     let cancelled = false;
 
@@ -209,6 +241,14 @@ export default function IdeaPage() {
         setBooting(false);
         return;
       }
+
+      posthog.capture("idea_cache_bootstrap_requested", {
+        idea_uuid: ideaUuid,
+        tag,
+        version,
+        trend_id: trendId ?? null,
+        explore_batch_uuid: exploreBatchUuid ?? null,
+      });
 
       try {
         const qs = new URLSearchParams({
@@ -228,11 +268,31 @@ export default function IdeaPage() {
         if (cancelled) return;
 
         const cachedPlan = res?.data?.video_detail;
+
+        posthog.capture("idea_cache_bootstrap_result", {
+          idea_uuid: ideaUuid,
+          tag,
+          version,
+          trend_id: trendId ?? null,
+          explore_batch_uuid: exploreBatchUuid ?? null,
+          cache_hit: Boolean(cachedPlan),
+        });
+
         if (cachedPlan) {
           onSuggestionLoaded({ video_detail: cachedPlan });
         }
       } catch (e: any) {
-        // Cache lookup should never hard-fail the UX
+        // Cache lookup should never hard-fail UX
+        posthog.capture("idea_cache_bootstrap_failed", {
+          idea_uuid: ideaUuid,
+          tag,
+          version,
+          trend_id: trendId ?? null,
+          explore_batch_uuid: exploreBatchUuid ?? null,
+          status_code: e?.status ?? null,
+          is_api_error: Boolean(e?.isApiError),
+        });
+
         console.warn("Idea cache bootstrap failed:", e);
       } finally {
         if (!cancelled) setBooting(false);
@@ -246,11 +306,43 @@ export default function IdeaPage() {
     };
   }, [ideaUuid, tag, version, trendId, exploreBatchUuid]);
 
+  // -----------------------------
+  // Track view mode changes (builder vs plan)
+  // -----------------------------
+  useEffect(() => {
+    if (!ideaUuid) return;
+
+    const mode: "builder" | "plan" = plan ? "plan" : "builder";
+
+    // avoid re-captures for same mode
+    if (viewModeRef.current === mode) return;
+    viewModeRef.current = mode;
+
+    posthog.capture("idea_view_mode_changed", {
+      idea_uuid: ideaUuid,
+      tag,
+      version,
+      mode,
+      is_final: Boolean(plan?.mode === "final"),
+    });
+  }, [plan, ideaUuid, tag, version]);
+
   const toggleShot = (x: string) => {
     if (isFinal) return;
 
     // cap selection to the plan size (dynamic backend list)
     const cap = plan?.shots?.length || 6;
+
+    posthog.capture("idea_shot_toggled", {
+      idea_uuid: ideaUuid,
+      tag,
+      version,
+      shot: x,
+      will_select: !selectedShots.includes(x),
+      selected_count: selectedShots.length,
+      cap,
+      is_final: isFinal,
+    });
 
     setSelectedShots((prev) => {
       if (prev.includes(x)) return prev.filter((s) => s !== x);
@@ -261,6 +353,13 @@ export default function IdeaPage() {
 
   const copyPlan = async () => {
     if (!plan) return;
+
+    posthog.capture("idea_plan_copy_clicked", {
+      idea_uuid: ideaUuid,
+      tag,
+      version,
+      is_final: isFinal,
+    });
 
     const lines = [
       `TITLE: ${editTitle || plan.title}`,
@@ -298,8 +397,18 @@ export default function IdeaPage() {
 
     try {
       await navigator.clipboard.writeText(lines);
+
+      posthog.capture("idea_plan_copy_succeeded", {
+        idea_uuid: ideaUuid,
+        tag,
+        version,
+      });
     } catch {
-      // ignore
+      posthog.capture("idea_plan_copy_failed", {
+        idea_uuid: ideaUuid,
+        tag,
+        version,
+      });
     }
   };
 
@@ -309,6 +418,18 @@ export default function IdeaPage() {
 
     setBusy(true);
     setError("");
+
+    finalizeStartRef.current = Date.now();
+
+    posthog.capture("idea_finalize_requested", {
+      idea_uuid: ideaUuid,
+      tag,
+      version,
+      trend_id: trendId ?? null,
+      explore_batch_uuid: exploreBatchUuid ?? null,
+      selected_shots_count: selectedShots.length,
+      change_request_length: changeRequest.trim().length,
+    });
 
     try {
       const adjustments = {
@@ -340,8 +461,25 @@ export default function IdeaPage() {
 
       onSuggestionLoaded(res.data);
       setIsFinal(true);
+
+      posthog.capture("idea_finalize_succeeded", {
+        idea_uuid: ideaUuid,
+        tag,
+        version,
+        ms: finalizeStartRef.current
+          ? Date.now() - finalizeStartRef.current
+          : null,
+      });
     } catch (e: any) {
       setError(e?.message || "Finalize failed.");
+
+      posthog.capture("idea_finalize_failed", {
+        idea_uuid: ideaUuid,
+        tag,
+        version,
+        status_code: e?.status ?? null,
+        is_api_error: Boolean(e?.isApiError),
+      });
     } finally {
       setBusy(false);
     }
@@ -384,20 +522,25 @@ export default function IdeaPage() {
         />
       ) : (
         <section className="grid lg:grid-cols-[1fr_420px] gap-6">
-          <div className="border border-[#242335] rounded-2xl p-6 bg-[#12111A]/80 shadow-lg space-y-5">
+          {/* ✅ THUMBNAIL FIRST ON MOBILE */}
+          <div className="space-y-4 order-1 lg:order-2">
+            <IdeaThumbnail v={plan} ideaUuid={ideaUuid} trendId={trendId} />
+          </div>
+
+          {/* ✅ CONTENT SECOND ON MOBILE */}
+          <div className="border border-[#242335] rounded-2xl p-6 bg-[#12111A]/80 shadow-lg space-y-5 order-2 lg:order-1">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <div
-                    className={`text-xs px-2 py-1 rounded-full border ${isFinal
+                    className={`text-xs px-2 py-1 rounded-full border ${
+                      isFinal
                         ? "border-[#00F5A0]/40 bg-[#00F5A0]/10 text-[#00F5A0]"
                         : "border-[#6C63FF]/40 bg-[#6C63FF]/10 text-[#6C63FF]"
-                      }`}
+                    }`}
                   >
                     {isFinal ? "Finalized" : "Idea Suggestion"}
                   </div>
-
-
                 </div>
 
                 <h1 className="text-2xl font-semibold text-white mt-2 break-words">
@@ -435,13 +578,13 @@ export default function IdeaPage() {
               </div>
             </div>
 
-            {/* Plain text "why" reused from trend service */}
             <IdeaWhyWorks text={plan.why_this_idea} />
-
-            {/* What to talk about */}
             <IdeaContentAdvice items={plan.content_advice || []} />
 
-            <Section title="Adjust it (optional)" hint={isFinal ? "Locked" : "Short edits"}>
+            <Section
+              title="Adjust it (optional)"
+              hint={isFinal ? "Locked" : "Short edits"}
+            >
               <div className="grid sm:grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <div className="text-xs text-neutral-500">Title</div>
@@ -449,6 +592,16 @@ export default function IdeaPage() {
                     disabled={isFinal}
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
+                    onBlur={() => {
+                      posthog.capture("idea_edit_field_blurred", {
+                        idea_uuid: ideaUuid,
+                        tag,
+                        version,
+                        field: "title",
+                        length: editTitle.trim().length,
+                        is_final: isFinal,
+                      });
+                    }}
                     className="w-full px-3 py-2 rounded-xl border border-[#2E2D39] bg-[#14131C] text-neutral-100 text-sm disabled:opacity-60"
                   />
                 </div>
@@ -459,6 +612,16 @@ export default function IdeaPage() {
                     disabled={isFinal}
                     value={editHook}
                     onChange={(e) => setEditHook(e.target.value)}
+                    onBlur={() => {
+                      posthog.capture("idea_edit_field_blurred", {
+                        idea_uuid: ideaUuid,
+                        tag,
+                        version,
+                        field: "hook",
+                        length: editHook.trim().length,
+                        is_final: isFinal,
+                      });
+                    }}
                     className="w-full px-3 py-2 rounded-xl border border-[#2E2D39] bg-[#14131C] text-neutral-100 text-sm disabled:opacity-60"
                   />
                 </div>
@@ -469,6 +632,16 @@ export default function IdeaPage() {
                     disabled={isFinal}
                     value={editAngle}
                     onChange={(e) => setEditAngle(e.target.value)}
+                    onBlur={() => {
+                      posthog.capture("idea_edit_field_blurred", {
+                        idea_uuid: ideaUuid,
+                        tag,
+                        version,
+                        field: "angle",
+                        length: editAngle.trim().length,
+                        is_final: isFinal,
+                      });
+                    }}
                     className="w-full px-3 py-2 rounded-xl border border-[#2E2D39] bg-[#14131C] text-neutral-100 text-sm disabled:opacity-60"
                   />
                 </div>
@@ -479,6 +652,16 @@ export default function IdeaPage() {
                     disabled={isFinal}
                     value={editReveal}
                     onChange={(e) => setEditReveal(e.target.value)}
+                    onBlur={() => {
+                      posthog.capture("idea_edit_field_blurred", {
+                        idea_uuid: ideaUuid,
+                        tag,
+                        version,
+                        field: "reveal",
+                        length: editReveal.trim().length,
+                        is_final: isFinal,
+                      });
+                    }}
                     className="w-full px-3 py-2 rounded-xl border border-[#2E2D39] bg-[#14131C] text-neutral-100 text-sm disabled:opacity-60"
                   />
                 </div>
@@ -489,6 +672,16 @@ export default function IdeaPage() {
                     disabled={isFinal}
                     value={editCta}
                     onChange={(e) => setEditCta(e.target.value)}
+                    onBlur={() => {
+                      posthog.capture("idea_edit_field_blurred", {
+                        idea_uuid: ideaUuid,
+                        tag,
+                        version,
+                        field: "cta",
+                        length: editCta.trim().length,
+                        is_final: isFinal,
+                      });
+                    }}
                     className="w-full px-3 py-2 rounded-xl border border-[#2E2D39] bg-[#14131C] text-neutral-100 text-sm disabled:opacity-60"
                   />
                 </div>
@@ -496,10 +689,17 @@ export default function IdeaPage() {
             </Section>
 
             <div className="grid sm:grid-cols-2 gap-4">
-              <Section title="Must do today" hint={`${plan.must_do_today?.length || 0} items`}>
+              <Section
+                title="Must do today"
+                hint={`${plan.must_do_today?.length || 0} items`}
+              >
                 <ChipRow items={plan.must_do_today || []} />
               </Section>
-              <Section title="Optional if time" hint={`${plan.optional_if_time?.length || 0} items`}>
+
+              <Section
+                title="Optional if time"
+                hint={`${plan.optional_if_time?.length || 0} items`}
+              >
                 <ChipRow items={plan.optional_if_time || []} />
               </Section>
             </div>
@@ -522,54 +722,67 @@ export default function IdeaPage() {
             </Section>
 
             <div className="grid sm:grid-cols-2 gap-4">
-              <Section title="On-screen numbers" hint={`${plan.on_screen?.length || 0} items`}>
+              <Section
+                title="On-screen numbers"
+                hint={`${plan.on_screen?.length || 0} items`}
+              >
                 <ChipRow items={plan.on_screen || []} />
               </Section>
 
               <Section title="Avoid" hint={`${plan.avoid?.length || 0} items`}>
                 <NumberedList items={plan.avoid || []} />
               </Section>
-            </div> 
-            {!isFinal && <>
-            <Section title="What should change?" hint={`${changeRequest.length}/200`}>
-              <textarea
-                disabled={isFinal}
-                value={changeRequest}
-                onChange={(e) => setChangeRequest(e.target.value.slice(0, 200))}
-                placeholder="Optional. Leave empty to finalize instantly without AI."
-                className="w-full min-h-[90px] px-3 py-2 rounded-xl border border-[#2E2D39] bg-[#14131C] text-neutral-100 text-sm disabled:opacity-60"
-              />
-              <p className="mt-2 text-xs text-neutral-500">
-                If this is empty, finalizing will NOT trigger an AI call.
-              </p>
-            </Section>
-
-            {error ? (
-              <div className="text-sm text-red-400 border border-red-500/20 bg-red-500/5 rounded-xl p-3">
-                {error}
-              </div>
-            ) : null}
-            
-            <div className="flex justify-center">
-              <PurpleActionButton
-                disabled={busy || isFinal}
-                onClick={finalize}
-                label="Finalize Idea"
-                loading={busy}
-              />
             </div>
-            </>
-            }
+
+            {!isFinal ? (
+              <>
+                <Section
+                  title="What should change?"
+                  hint={`${changeRequest.length}/200`}
+                >
+                  <textarea
+                    disabled={isFinal}
+                    value={changeRequest}
+                    onChange={(e) =>
+                      setChangeRequest(e.target.value.slice(0, 200))
+                    }
+                    onBlur={() => {
+                      posthog.capture("idea_edit_field_blurred", {
+                        idea_uuid: ideaUuid,
+                        tag,
+                        version,
+                        field: "change_request",
+                        length: changeRequest.trim().length,
+                        is_final: isFinal,
+                      });
+                    }}
+                    placeholder="Make it more interactive, focus on XYZ..."
+                    className="w-full min-h-[90px] px-3 py-2 rounded-xl border border-[#2E2D39] bg-[#14131C] text-neutral-100 text-sm disabled:opacity-60"
+                  />
+                </Section>
+
+                {error ? (
+                  <div className="text-sm text-red-400 border border-red-500/20 bg-red-500/5 rounded-xl p-3">
+                    {error}
+                  </div>
+                ) : null}
+
+                <div className="flex justify-center">
+                  <PurpleActionButton
+                    disabled={busy || isFinal}
+                    onClick={finalize}
+                    label="Finalize Idea"
+                    loading={busy}
+                  />
+                </div>
+              </>
+            ) : null}
 
             {isFinal ? (
               <p className="text-xs text-neutral-500 text-center">
-                This idea is finalized and locked.
+                This idea is finalized and saved in the production calendar.
               </p>
             ) : null}
-          </div>
-
-          <div className="space-y-4">
-            <IdeaThumbnail v={plan} ideaUuid={ideaUuid} trendId={trendId} />
           </div>
         </section>
       )}

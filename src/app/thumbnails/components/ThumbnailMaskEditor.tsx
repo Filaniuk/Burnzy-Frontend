@@ -392,9 +392,6 @@ const ThumbnailMaskEditor = forwardRef<ThumbnailMaskEditorHandle, Props>(
           <canvas ref={maskCanvasRef} className="hidden" />
         </div>
 
-        <p className="mt-2 text-xs text-neutral-400">
-          Paint the area to edit (green). Exported mask uses black = edit.
-        </p>
       </div>
     );
   }

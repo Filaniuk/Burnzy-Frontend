@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { apiFetch } from "@/lib/api";
 import { IdeaStatus } from "@/types/calendar";
 import ConfirmModal from "@/app/pricing/components/ConfirmModal";
+import posthog from "posthog-js";
+import { extractApiError } from "@/lib/errors";
 
 interface EventModalProps {
   close: () => void;
@@ -33,7 +35,6 @@ export default function EventModal({ close, ideaId, reload }: EventModalProps) {
   const [newStatus, setNewStatus] = useState<IdeaStatus>("to_publish");
   const [saving, setSaving] = useState(false);
 
-  // NEW: Error modal state
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showError, setShowError] = useState(false);
 
@@ -41,20 +42,37 @@ export default function EventModal({ close, ideaId, reload }: EventModalProps) {
     if (!ideaId) return;
 
     setLoading(true);
+
+    // ✅ meaningful action: user opened a scheduled idea (data load)
+    posthog.capture("calendar_idea_load_requested", {
+      idea_id: ideaId,
+    });
+
     apiFetch<any>(`/api/v1/ideas/${ideaId}`)
       .then((res) => {
         const data = res.data as IdeaResponse;
         setIdea(data);
         setNewStatus(data.status);
+
+        posthog.capture("calendar_idea_loaded", {
+          idea_id: ideaId,
+          status: data.status,
+          is_scheduled: Boolean(data.scheduled_for),
+        });
       })
       .catch((err: any) => {
-        setErrorMsg(err?.message || "Failed to load idea.");
+        posthog.capture("calendar_idea_load_failed", {
+          idea_id: ideaId,
+          status: err?.status ?? null,
+          is_api_error: Boolean(err?.isApiError),
+        });
+
+        setErrorMsg(extractApiError(err) || "Failed to load idea.");
         setShowError(true);
       })
       .finally(() => setLoading(false));
   }, [ideaId]);
 
-  // Show error modal *instead of crashing*
   if (showError) {
     return (
       <ConfirmModal
@@ -78,7 +96,15 @@ export default function EventModal({ close, ideaId, reload }: EventModalProps) {
   if (!ideaId || loading || !idea) return null;
 
   async function saveStatus() {
+    if(!idea) return;
     setSaving(true);
+
+    posthog.capture("calendar_status_update_requested", {
+      idea_id: ideaId,
+      from: idea.status,
+      to: newStatus,
+    });
+
     try {
       await apiFetch<any>("/api/v1/ideas/update_status", {
         method: "POST",
@@ -88,10 +114,24 @@ export default function EventModal({ close, ideaId, reload }: EventModalProps) {
         }),
       });
 
+      posthog.capture("calendar_status_update_succeeded", {
+        idea_id: ideaId,
+        from: idea.status,
+        to: newStatus,
+      });
+
       await reload();
       close();
     } catch (err: any) {
-      setErrorMsg(err?.message || "Failed to update status.");
+      posthog.capture("calendar_status_update_failed", {
+        idea_id: ideaId,
+        from: idea.status,
+        to: newStatus,
+        status: err?.status ?? null,
+        is_api_error: Boolean(err?.isApiError),
+      });
+
+      setErrorMsg(extractApiError(err) || "Failed to update status.");
       setShowError(true);
     } finally {
       setSaving(false);
@@ -130,14 +170,10 @@ export default function EventModal({ close, ideaId, reload }: EventModalProps) {
 
         <p className="mb-1 text-sm text-neutral-400">Current Status</p>
         <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-[#181624] px-3 py-1 text-xs text-neutral-200">
-          <span
-            className="h-2 w-2 rounded-full"
-            style={{ background: statusDotColor }}
-          />
+          <span className="h-2 w-2 rounded-full" style={{ background: statusDotColor }} />
           <span>{statusLabelMap[idea.status]}</span>
         </div>
 
-        {/* STATUS SELECT */}
         <div className="mb-4">
           <label className="mb-1 block text-xs text-neutral-400">
             Change status
@@ -155,7 +191,6 @@ export default function EventModal({ close, ideaId, reload }: EventModalProps) {
           </select>
         </div>
 
-        {/* SAVE STATUS */}
         <button
           onClick={saveStatus}
           disabled={saving}

@@ -1,8 +1,11 @@
 "use client";
 
+import { posthog } from "posthog-js";
 import React from "react";
 
 export default function PrivacyPolicyPage() {
+  posthog.capture("policy_viewed");
+
   return (
     <div className="min-h-screen bg-[#0F0E17] text-white py-16 px-6 flex justify-center">
       <div className="max-w-4xl w-full bg-[#12111A] p-10 rounded-2xl shadow-lg border border-[#1F1E29]">

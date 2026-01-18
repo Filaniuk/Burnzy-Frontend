@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { easeOut, motion } from "framer-motion";
 import ConfirmModal from "@/app/pricing/components/ConfirmModal";
+import posthog from "posthog-js";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,19 +17,25 @@ export default function LoginPage() {
     color: "red" as "red" | "yellow" | "green",
   });
 
-  // 🔐 Check if user already logged in
+  const ranRef = useRef(false);
+
   useEffect(() => {
+    if (ranRef.current) return;
+    ranRef.current = true;
+
+    posthog.capture("login_page_viewed");
+
     const checkAuth = async () => {
       try {
         const res = await apiFetch<any>("/auth/me");
 
-        // Backend returns email, plan, etc.
         if (res?.email) {
+          posthog.capture("login_already_authenticated_redirect");
           router.replace("/analyze");
         }
       } catch (err: any) {
-        // Silent fail — user not logged in
-        console.warn("Auth check failed:", err?.detail || err);
+
+        posthog.capture("login_not_authenticated");
       }
     };
 
@@ -37,8 +44,15 @@ export default function LoginPage() {
 
   const handleGoogleLogin = () => {
     try {
+      posthog.capture("login_google_clicked");
+
       window.location.href = `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/google/login`;
     } catch (err: any) {
+      posthog.capture("login_google_start_failed", {
+        reason:
+          typeof err?.message === "string" ? err.message.slice(0, 120) : "unknown",
+      });
+
       setModal({
         show: true,
         title: "Login Failed",
@@ -59,17 +73,14 @@ export default function LoginPage() {
           transition={{ duration: 0.4, ease: easeOut }}
           className="flex flex-col items-center text-center w-full max-w-md p-8 sm:p-10 bg-[#1B1A24]/60 rounded-2xl border border-[#2E2D39] shadow-xl"
         >
-          {/* Title */}
           <h1 className="text-3xl sm:text-4xl font-bold mb-3 bg-gradient-to-r from-[#6C63FF] to-[#00F5A0] bg-clip-text text-transparent">
             Welcome!
           </h1>
 
-          {/* Subtitle */}
           <p className="text-neutral-400 text-sm sm:text-base mb-8">
             Sign in to continue with your account
           </p>
 
-          {/* Google Login Button */}
           <button
             onClick={handleGoogleLogin}
             className="flex items-center justify-center gap-3 w-full py-3 sm:py-3.5 rounded-xl bg-white text-black font-semibold shadow-lg transition-transform hover:scale-[1.03] focus:outline-none focus:ring-2 focus:ring-[#00F5A0]/50 active:scale-[0.98]"
@@ -83,7 +94,6 @@ export default function LoginPage() {
             Continue with Google
           </button>
 
-          {/* Legal text */}
           <p className="text-neutral-500 text-xs sm:text-sm mt-6 max-w-sm leading-relaxed">
             By continuing, you agree to our{" "}
             <a
@@ -103,13 +113,11 @@ export default function LoginPage() {
           </p>
         </motion.section>
 
-        {/* Footer */}
         <footer className="mt-10 text-neutral-600 text-sm text-center">
           © {new Date().getFullYear()} Burnzy. All rights reserved.
         </footer>
       </main>
 
-      {/* Error Modal */}
       <ConfirmModal
         show={modal.show}
         onCancel={() => setModal({ ...modal, show: false })}

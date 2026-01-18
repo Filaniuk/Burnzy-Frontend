@@ -13,6 +13,7 @@ import type {
   BuilderQuestion,
 } from "@/types/builderTypes";
 import { PurpleActionButton } from "@/components/PurpleActionButton";
+import posthog from "posthog-js";
 
 type AnswerState = {
   value: string | string[];
@@ -79,17 +80,28 @@ export default function IdeaBuilderWizard({
     setError("");
 
     (async () => {
+      posthog.capture("idea_builder_init_requested", {
+        idea_uuid: ideaUuid,
+        tag,
+        version,
+        trend_id: trendId ?? null,
+        explore_batch_uuid_present: Boolean(exploreBatchUuid),
+      });
+
       try {
-        const res = await apiFetch<BuilderInitResponse>("/api/v1/video_content_detailed/builder_init", {
-          method: "POST",
-          body: JSON.stringify({
-            channel_tag: tag,
-            idea_uuid: ideaUuid,
-            version,
-            ...(trendId ? { trend_id: trendId } : {}),
-            ...(exploreBatchUuid ? { explore_batch_uuid: exploreBatchUuid } : {}),
-          }),
-        });
+        const res = await apiFetch<BuilderInitResponse>(
+          "/api/v1/video_content_detailed/builder_init",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              channel_tag: tag,
+              idea_uuid: ideaUuid,
+              version,
+              ...(trendId ? { trend_id: trendId } : {}),
+              ...(exploreBatchUuid ? { explore_batch_uuid: exploreBatchUuid } : {}),
+            }),
+          }
+        );
 
         const fmt = res?.data?.locked?.format || "long_form";
         const presets = res?.data?.duration_picker?.presets || [];
@@ -98,7 +110,6 @@ export default function IdeaBuilderWizard({
         setLockedFormat(fmt);
         setDurationPresets(presets);
 
-        // default selection: use backend recommendation if present, else first preset
         if (recommended) {
           setDurationSelected(recommended);
         } else if (presets.length) {
@@ -107,21 +118,38 @@ export default function IdeaBuilderWizard({
           setDurationSelected(fmt === "short_form" ? "60 sec" : "12 min");
         }
 
-        // Restore draft answers if they exist (questions stage only)
+        posthog.capture("idea_builder_init_succeeded", {
+          locked_format: fmt,
+          presets_count: presets.length,
+          duration_default: recommended || (presets?.[0]?.value ?? null),
+        });
+
         try {
           const raw = localStorage.getItem(storageKey);
           if (raw) {
             const parsed = JSON.parse(raw);
-            if (parsed && typeof parsed === "object") setAnswers(parsed);
+            if (parsed && typeof parsed === "object") {
+              setAnswers(parsed);
+
+              posthog.capture("idea_builder_draft_restored", {
+                restored_keys: Object.keys(parsed || {}).length,
+              });
+            }
           }
         } catch { }
       } catch (e: any) {
+        posthog.capture("idea_builder_init_failed", {
+          status_code: e?.status ?? null,
+          is_api_error: Boolean(e?.isApiError),
+        });
+
         setError(e?.message || "Failed to load builder init.");
       } finally {
         setLoading(false);
       }
     })();
   }, [ideaUuid, tag, version, trendId, exploreBatchUuid, storageKey]);
+
 
   // persist answers
   useEffect(() => {
@@ -219,18 +247,33 @@ export default function IdeaBuilderWizard({
     setError("");
     setSubmitting(true);
 
+    posthog.capture("idea_builder_duration_continue_clicked", {
+      duration_selected: durationSelected,
+      locked_format: lockedFormat,
+    });
+
+    posthog.capture("idea_builder_questions_requested", {
+      duration_selected: durationSelected,
+      idea_uuid: ideaUuid,
+      tag,
+      version,
+    });
+
     try {
-      const res = await apiFetch<BuilderApiResponse>("/api/v1/video_content_detailed/builder", {
-        method: "POST",
-        body: JSON.stringify({
-          channel_tag: tag,
-          idea_uuid: ideaUuid,
-          version,
-          duration_estimate_override: durationSelected,
-          ...(trendId ? { trend_id: trendId } : {}),
-          ...(exploreBatchUuid ? { explore_batch_uuid: exploreBatchUuid } : {}),
-        }),
-      });
+      const res = await apiFetch<BuilderApiResponse>(
+        "/api/v1/video_content_detailed/builder",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            channel_tag: tag,
+            idea_uuid: ideaUuid,
+            version,
+            duration_estimate_override: durationSelected,
+            ...(trendId ? { trend_id: trendId } : {}),
+            ...(exploreBatchUuid ? { explore_batch_uuid: exploreBatchUuid } : {}),
+          }),
+        }
+      );
 
       const b = res?.data?.builder;
       if (!b?.questions?.length) throw new Error("Builder returned no questions.");
@@ -238,41 +281,70 @@ export default function IdeaBuilderWizard({
       setBuilder(b);
       setStage("questions");
       setCurrentStep(0);
+
+      posthog.capture("idea_builder_questions_succeeded", {
+        questions_count: b.questions.length,
+        estimated_minutes: b.estimated_minutes ?? null,
+      });
     } catch (e: any) {
+      posthog.capture("idea_builder_questions_failed", {
+        status_code: e?.status ?? null,
+        is_api_error: Boolean(e?.isApiError),
+      });
+
       setError(e?.message || "Failed to load builder questions.");
     } finally {
       setSubmitting(false);
     }
   };
 
+
   const submit = async () => {
     setError("");
     if (!builder) return;
 
+    posthog.capture("idea_builder_submit_clicked", {
+      total_questions: questions.length,
+      duration_selected: durationSelected,
+    });
+
     for (const q of questions) {
       if (!validateQuestion(q)) {
+        posthog.capture("idea_builder_submit_validation_failed", {
+          total_questions: questions.length,
+        });
+
         setError("You missed a required question. Finish the flow.");
         return;
       }
     }
 
     setSubmitting(true);
+
+    posthog.capture("idea_builder_final_requested", {
+      total_questions: questions.length,
+      duration_selected: durationSelected,
+    });
+
     try {
       const payload = buildFinalPayload();
 
-      const res = await apiFetch<FinalIdeaApiResponse>("/api/v1/video_content_detailed/from_builder", {
-        method: "POST",
-        body: JSON.stringify({
-          channel_tag: tag,
-          idea_uuid: ideaUuid,
-          version,
-          duration_override: durationSelected, // IMPORTANT: lock it
-          ...(trendId ? { trend_id: trendId } : {}),
-          ...(exploreBatchUuid ? { explore_batch_uuid: exploreBatchUuid } : {}),
-          builder,
-          answers: payload,
-        }),
-      });
+      const res = await apiFetch<FinalIdeaApiResponse>(
+        "/api/v1/video_content_detailed/from_builder",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            channel_tag: tag,
+            idea_uuid: ideaUuid,
+            version,
+            duration_override: durationSelected,
+            ...(trendId ? { trend_id: trendId } : {}),
+            ...(exploreBatchUuid ? { explore_batch_uuid: exploreBatchUuid } : {}),
+            builder,
+            answers: payload,
+          }),
+        }
+      );
 
       if (!res?.data?.video_detail) {
         throw new Error("Final idea generation returned invalid data.");
@@ -282,13 +354,24 @@ export default function IdeaBuilderWizard({
         localStorage.removeItem(storageKey);
       } catch { }
 
+      posthog.capture("idea_builder_final_succeeded", {
+        duration_selected: durationSelected,
+        total_questions: questions.length,
+      });
+
       onFinal(res.data);
     } catch (e: any) {
+      posthog.capture("idea_builder_final_failed", {
+        status_code: e?.status ?? null,
+        is_api_error: Boolean(e?.isApiError),
+      });
+
       setError(e?.message || "Failed to generate final idea.");
     } finally {
       setSubmitting(false);
     }
   };
+
 
   if (loading) {
     return (
@@ -365,10 +448,11 @@ export default function IdeaBuilderWizard({
         <div className="mt-6 flex items-center justify-end">
 
           <PurpleActionButton
-            label="Continue ->"
+            label="Continue"
             onClick={continueFromDuration}
             disabled={submitting || !durationSelected}
             loading={submitting}
+            labelOnLoading="Preparing questions..."
           />
         </div>
       </section>

@@ -6,6 +6,8 @@ import { GradientActionButton } from "@/components/GradientActionButton";
 import { PurpleActionButton } from "@/components/PurpleActionButton";
 import { apiFetch } from "@/lib/api";
 import ConfirmModal from "@/app/pricing/components/ConfirmModal";
+import posthog from "posthog-js";
+import { extractApiError } from "@/lib/errors";
 
 interface Props {
   open: boolean;
@@ -95,9 +97,26 @@ export default function CreateIdeaModal({
   const submit = async () => {
     const validTitle = validateTitle();
     const validDate = validateDate();
-    if (!validTitle || !validDate) return;
+
+    if (!validTitle || !validDate) {
+      posthog.capture("idea_manual_create_validation_failed", {
+        tag,
+        version,
+        has_title: Boolean(title.trim()),
+        has_date: Boolean(scheduledFor),
+        status,
+      });
+      return;
+    }
 
     setLoading(true);
+
+    posthog.capture("idea_manual_create_requested", {
+      tag,
+      version,
+      status,
+      scheduled_for: scheduledFor,
+    });
 
     try {
       await apiFetch("/api/v1/ideas/create_manual", {
@@ -105,23 +124,40 @@ export default function CreateIdeaModal({
         body: JSON.stringify({
           title,
           status,
-          // now always set (never null)
           scheduled_for: scheduledFor,
           channel_tag: tag,
           version,
         }),
       });
 
+      posthog.capture("idea_manual_create_succeeded", {
+        tag,
+        version,
+        status,
+        scheduled_for: scheduledFor,
+      });
+
       onCreated();
       onClose();
     } catch (rawErr: any) {
       console.error("Create idea error:", rawErr);
-      setErrorMessage(normalizeError(rawErr));
+
+      posthog.capture("idea_manual_create_failed", {
+        tag,
+        version,
+        status,
+        scheduled_for: scheduledFor,
+        status_code: rawErr?.status ?? null,
+        is_api_error: Boolean(rawErr?.isApiError),
+      });
+
+      setErrorMessage(extractApiError(rawErr) || "Unexpected error.");
       setErrorOpen(true);
     } finally {
       setLoading(false);
     }
   };
+
 
   const isFormInvalid =
     !title.trim() ||

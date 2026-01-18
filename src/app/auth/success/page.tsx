@@ -10,7 +10,7 @@ export default function OAuthSuccessPage() {
 
   useEffect(() => {
     (async () => {
-      await refresh(); // loads user from session cookie
+      await refresh();
       router.push("/analyze");
     })();
   }, []);
